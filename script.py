@@ -43,38 +43,43 @@ def make_db():
     cur.executemany("INSERT INTO ratings (userId, movieId, rating, timestamp) VALUES (?, ?, ?, ?)", ratings.values.tolist())
 
     cur.execute("""
-        SELECT
-            movieId,
-            COUNT(*) AS movie_count
-        FROM ratings
-        WHERE rating = 5
-        GROUP BY movieId
-        HAVING movie_count > 100
-        ORDER BY movie_count DESC;
+        SELECT m.*, r.movie_count
+        FROM movies m
+        JOIN (
+            SELECT
+                movieId,
+                COUNT(*) AS movie_count
+            FROM ratings
+            WHERE rating = 5
+            GROUP BY movieId
+            HAVING movie_count > 50
+            ORDER BY movie_count DESC
+        ) r
+        ON m.movieId = r.movieId;
 """)
     rows = cur.fetchall()
-    top_movies = pd.DataFrame(columns=['movieId', 'rating_num', 'movieName'])
+    # top_movies = pd.DataFrame(columns=['movieId', 'rating_num', 'movieName'])
     for row in rows:
         
-        top_movies.loc[len(top_movies)] = [row[0], row[1], "Unknown"]
-        # print(row)
-    print(top_movies.head())
-
-    top_movie_ids = top_movies['movieId'].tolist()
-    print(top_movie_ids)
-    print({','.join(['?']*len(top_movie_ids))})
-
-
-    cur.execute(f"""
-        SELECT
-            title
-        FROM movies
-        WHERE movieId IN ({','.join(['?']*len(top_movie_ids))})
-    """)
-
-    second_rows = cur.fetchall()
-    for second_row in second_rows:
+        # top_movies.loc[len(top_movies)] = [row[0], row[1], "Unknown"]
         print(row)
+    # print(top_movies.head())
+
+    # top_movie_ids = top_movies['movieId'].tolist()
+    # print(top_movie_ids)
+    # print({','.join(['?']*len(top_movie_ids))})
+
+
+    # cur.execute(f"""
+    #     SELECT
+    #         title
+    #     FROM movies
+    #     WHERE movieId IN ({','.join(['?']*len(top_movie_ids))})
+    # """)
+
+    # second_rows = cur.fetchall()
+    # for second_row in second_rows:
+    #     print(row)
 
     con.commit()
     con.close()
