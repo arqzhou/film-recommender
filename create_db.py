@@ -53,33 +53,15 @@ def make_db():
             WHERE rating = 5
             GROUP BY movieId
             HAVING movie_count > 50
-            ORDER BY movie_count DESC
         ) r
-        ON m.movieId = r.movieId;
+        ON m.movieId = r.movieId
+        ORDER BY r.movie_count DESC
+        ;
 """)
     rows = cur.fetchall()
-    # top_movies = pd.DataFrame(columns=['movieId', 'rating_num', 'movieName'])
-    for row in rows:
-        
-        # top_movies.loc[len(top_movies)] = [row[0], row[1], "Unknown"]
+
+    for row in rows:     
         print(row)
-    # print(top_movies.head())
-
-    # top_movie_ids = top_movies['movieId'].tolist()
-    # print(top_movie_ids)
-    # print({','.join(['?']*len(top_movie_ids))})
-
-
-    # cur.execute(f"""
-    #     SELECT
-    #         title
-    #     FROM movies
-    #     WHERE movieId IN ({','.join(['?']*len(top_movie_ids))})
-    # """)
-
-    # second_rows = cur.fetchall()
-    # for second_row in second_rows:
-    #     print(row)
 
     con.commit()
     con.close()
