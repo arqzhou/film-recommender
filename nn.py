@@ -135,7 +135,14 @@ def make_matrices():
 
     return(r_matrix, b_matrix)
 
-def cost_function(Y, R):
+def cost_function(X, W, b, Y_norm, R, nm, nu, lambda_):
+    preds = tf.linalg.matmul(X, W, transpose_b = True) + b
+    squared_error = tf.reduce_sum(((preds - Y_norm) ** 2) * R)
+    reg_terms = lambda_*((tf.reduce_sum(X ** 2))) + lambda_*((tf.reduce_sum(W ** 2)))
+
+    return(squared_error + reg_terms)
+
+def training_loop(Y, R):
     print(len(Y), len(Y[1]))
     X = tf.Variable(tf.random.normal((len(Y),25), dtype=tf.float64), name = "movie_features")
     W = tf.Variable(tf.random.normal((len(Y[0]),25), dtype=tf.float64), name = "user_features")
@@ -146,8 +153,19 @@ def cost_function(Y, R):
     Y_norm = Y - mean_i[:, None]
     print(Y_norm[:5, :5])
 
-    preds = tf.linalg.matmul(X, W, transpose_b = True) + b
 
+    optimizer = tf.keras.optimizers.Adam(learning_rate = 1e-1)
+    iterations = 300
+    lambda_ = .1
 
+    for iter in range(iterations):
+        with tf.GradientTape() as tape:
+            cost_value = cost_function(X, W, b, Y_norm, R, len(Y), len(Y[0]), lambda_)
+        grads = tape.gradient(cost_value, [X, W, b])
+        optimizer.apply_gradients(zip(grads, [X, W, b]))
+        if iter % 10 == 0:
+            print(cost_value, iter)
 
-cost_function(*make_matrices())
+    return(X, W, b)
+
+X_weights, W_weights, b_bias = training_loop(*make_matrices())

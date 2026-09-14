@@ -1,0 +1,16 @@
+5	142115	The Blue Planet (2001)	Documentary
+5	149406	Kung Fu Panda 3 (2016)	Action|Adventure|Animation
+4.5	152081	Zootopia (2016)	Action|Adventure|Animation|Children|Comedy
+4	156025	Ice Age: The Great Egg-Scapade (2016)	Adventure|Animation|Children|Comedy
+4.5	157122	The Man Who Knew Infinity (2016)	Drama
+3	157296	Finding Dory (2016)	Adventure|Animation|Comedy
+3.5	157340	The Angry Birds Movie (2016)	Animation|Comedy
+4	160980	Sully (2016)	Drama
+5	163134	Your Name. (2016)	Animation|Drama|Fantasy|Romance
+2	164200	Storks (2016)	Animation|Children|Comedy
+5	166461	Moana (2016)	Adventure|Animation|Children|Comedy|Fantasy
+4.5	166643	Hidden Figures (2016)	Drama
+3.5	170957	Cars 3 (2017)	Adventure|Animation|Comedy
+5	171011	Planet Earth II (2016)	Documentary
+5	179135	Blue Planet II (2017)	Documentary
+3.5	187541	Incredibles 2 (2018)	Action|Adventure|Animation|Children

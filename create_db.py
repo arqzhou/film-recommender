@@ -43,25 +43,28 @@ def make_db():
     cur.executemany("INSERT INTO ratings (userId, movieId, rating, timestamp) VALUES (?, ?, ?, ?)", ratings.values.tolist())
 
     cur.execute("""
-        SELECT m.*, r.movie_count
-        FROM movies m
-        JOIN (
-            SELECT
-                movieId,
-                COUNT(*) AS movie_count
-            FROM ratings
-            WHERE rating = 5
-            GROUP BY movieId
-            HAVING movie_count > 50
-        ) r
-        ON m.movieId = r.movieId
-        ORDER BY r.movie_count DESC
-        ;
-""")
-    rows = cur.fetchall()
+    """)
 
-    for row in rows:     
-        print(row)
+#     cur.execute("""
+#         SELECT m.*, r.movie_count
+#         FROM movies m
+#         JOIN (
+#             SELECT
+#                 movieId,
+#                 COUNT(*) AS movie_count
+#             FROM ratings
+#             WHERE rating = 5
+#             GROUP BY movieId
+#             HAVING movie_count > 50
+#         ) r
+#         ON m.movieId = r.movieId
+#         ORDER BY r.movie_count DESC
+#         ;
+# """)
+#     rows = cur.fetchall()
+
+#     for row in rows:     
+#         print(row)
 
     con.commit()
     con.close()
