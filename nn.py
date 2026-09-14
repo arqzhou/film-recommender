@@ -1,4 +1,6 @@
 import sqlite3
+from bidict import bidict
+import numpy as np
 
 con = sqlite3.connect("movielens.db")
 cur = con.cursor()
@@ -90,5 +92,46 @@ def get_recommendations(userId, n):
     top_unrated_movies = cur.fetchall()
     return(top_unrated_movies[:n])
 
-print(get_recommendations('10', 10))
+# print(get_recommendations('10', 10))
 
+def make_matrices():
+    # movieId is non-contiguous, so creating a bidirectional mapping for new ids.
+    movie_query = """
+    SELECT movieId
+    FROM movies
+    ;
+    """
+    cur.execute(movie_query)
+    all_movieIds = cur.fetchall()
+    print(all_movieIds[:5])
+    unique_mIds = np.array(all_movieIds).squeeze()
+    print(len(unique_mIds))
+
+    testing_arr = np.array([193609, 1, 187595])
+    print(np.searchsorted(unique_mIds, testing_arr))
+
+    rating_query = """
+    SELECT userId, movieId, rating
+    FROM ratings
+    ORDER BY userId, movieId
+    ;
+    """
+    cur.execute(rating_query)
+    rating_data = cur.fetchall()
+    print(len(rating_data))
+
+    # Vectorized way to add all the data into the matrix.
+    m_userIds, m_movieIds, m_ratings = zip(*rating_data)
+    a_userIds = tuple(x - 1 for x in m_userIds)
+    print(type(m_movieIds))
+    m_movieIds = np.searchsorted(unique_mIds, m_movieIds)
+
+    r_matrix = np.zeros((len(unique_mIds), len(np.unique(a_userIds))))
+    b_matrix = np.zeros((len(unique_mIds), len(np.unique(a_userIds))))
+
+    r_matrix[m_movieIds, a_userIds] = m_ratings
+    b_matrix[m_movieIds, a_userIds] = 1
+    print(r_matrix[:5, :5])
+    print(b_matrix[:5, :5])
+
+make_matrices()
