@@ -39,7 +39,7 @@ baseline_query = """
         SELECT movieId, AVG(rating) as avg_rating, COUNT(*) as num_ratings
         FROM ratings
         GROUP BY movieId
-        HAVING num_ratings > 2
+        HAVING num_ratings > 10
         ORDER BY avg_rating DESC) i
     ON m.movieId = i.movieId
     ;
@@ -60,3 +60,35 @@ print(avg_ratings[:10])
 # cur.execute(percentage_query)
 # num_left = cur.fetchall()
 # print(num_left)
+
+def get_recommendations(userId, n):
+    recommendations_query = """
+        SELECT f.movieId, f.title, f.avg_rating, f.num_ratings
+        FROM (
+            SELECT m.movieId, m.title, i.avg_rating, i.num_ratings
+            FROM movies m
+            INNER JOIN (
+                SELECT movieId, AVG(rating) as avg_rating, COUNT(*) as num_ratings
+                FROM ratings
+                GROUP BY movieId
+                HAVING num_ratings > 2
+            ) i
+            ON m.movieId = i.movieId
+        ) f
+        INNER JOIN (
+            SELECT m.*, r.userId, r.movieId
+                FROM movies m
+                LEFT JOIN ratings r
+                    ON m.movieId = r.movieId AND r.userId = ?
+                WHERE r.movieId IS NULL
+        ) u
+        ON f.movieId = u.movieId
+        ORDER BY f.avg_rating DESC
+    ;
+    """
+    cur.execute(recommendations_query, (userId,))
+    top_unrated_movies = cur.fetchall()
+    return(top_unrated_movies[:n])
+
+print(get_recommendations('10', 10))
+
