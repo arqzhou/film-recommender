@@ -99,6 +99,7 @@ def make_matrices():
     movie_query = """
     SELECT movieId
     FROM movies
+    ORDER BY movieId
     ;
     """
     cur.execute(movie_query)
@@ -106,9 +107,6 @@ def make_matrices():
     print(all_movieIds[:5])
     unique_mIds = np.array(all_movieIds).squeeze()
     print(len(unique_mIds))
-
-    testing_arr = np.array([193609, 1, 187595])
-    print(np.searchsorted(unique_mIds, testing_arr))
 
     rating_query = """
     SELECT userId, movieId, rating
@@ -123,7 +121,8 @@ def make_matrices():
     # Vectorized way to add all the data into the matrix.
     m_userIds, m_movieIds, m_ratings = zip(*rating_data)
     a_userIds = tuple(x - 1 for x in m_userIds)
-    print(type(m_movieIds))
+
+    # Assigns the noncontiguous values to a contiguous index from 0 to N - 1, where N = # of unique movie Ids.
     m_movieIds = np.searchsorted(unique_mIds, m_movieIds)
 
     r_matrix = np.zeros((len(unique_mIds), len(np.unique(a_userIds))))
