@@ -155,7 +155,7 @@ def training_loop(Y, R):
 
 
     optimizer = tf.keras.optimizers.Adam(learning_rate = 1e-1)
-    iterations = 300
+    iterations = 20
     lambda_ = .1
 
     for iter in range(iterations):
@@ -166,6 +166,24 @@ def training_loop(Y, R):
         if iter % 10 == 0:
             print(cost_value, iter)
 
-    return(X, W, b)
+    return(X, W, b, mean_i)
 
-X_weights, W_weights, b_bias = training_loop(*make_matrices())
+X_weights, W_weights, b_bias, mean_ratings = training_loop(*make_matrices())
+
+movie_query = """
+    SELECT movieId
+    FROM movies
+    ORDER BY movieId
+    ;
+    """
+cur.execute(movie_query)
+all_movieIds = cur.fetchall()
+unique_mIds = np.array(all_movieIds).squeeze()
+
+np.savez("trained_weights.npz", X_weights=X_weights.numpy(), W_weights=W_weights.numpy(), b_bias=b_bias.numpy(), mean_ratings=mean_ratings, unique_mIds=unique_mIds)
+print("saved")
+
+# final_preds = tf.linalg.matmul(X, W, transpose_b = True) + b
+# final_preds = final_preds + mean_i[:, None]
+
+# print(get_recommendations(611, 10))
