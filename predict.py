@@ -44,8 +44,6 @@ def get_recommendations(userId, n):
     top_unrated_movies = cur.fetchall()
     return(top_unrated_movies[:n])
 
-# print(get_recommendations('611', 10))
-
 def personal_preds(preds, userId, n, unique_mIds):
     user_index = int(userId) - 1
     pers_preds = preds[:, user_index]
@@ -64,7 +62,6 @@ def personal_preds(preds, userId, n, unique_mIds):
     print(unrated_titles[:10])
     indexed_unrated_ids = np.searchsorted(unique_mIds, unrated_ids)
     unrated_preds = pers_preds[indexed_unrated_ids]
-    # unrated_preds = np.clip(unrated_preds, 0.5, 5)
 
     sorted_unrated_indices = np.argsort(unrated_preds)[::-1]
     top_preds = unrated_preds[sorted_unrated_indices][:n]
@@ -73,7 +70,7 @@ def personal_preds(preds, userId, n, unique_mIds):
     dtype = np.dtype([('prediction', 'f4'), ('title', 'U100')])
 
     top_recommendations = np.empty(top_preds.shape, dtype=dtype)
-    top_recommendations['prediction'] = top_preds
+    top_recommendations['prediction'] = np.clip(top_preds, 0.5, 5)
     top_recommendations['title'] = top_titles
 
     return(top_recommendations)
@@ -90,4 +87,9 @@ print("\n-----------------------\n")
 
 print(get_recommendations('100', 10))
 print(personal_preds(preds, '100', 10, unique_mIds))
+
+print("\n-----------------------\n")
+
+print(get_recommendations('611', 10))
+print(personal_preds(preds, '611', 10, unique_mIds))
 
