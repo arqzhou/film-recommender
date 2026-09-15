@@ -63,36 +63,7 @@ cur = con.cursor()
 # num_left = cur.fetchall()
 # print(num_left)
 
-def get_recommendations(userId, n):
-    recommendations_query = """
-        SELECT f.movieId, f.title, f.avg_rating, f.num_ratings
-        FROM (
-            SELECT m.movieId, m.title, i.avg_rating, i.num_ratings
-            FROM movies m
-            INNER JOIN (
-                SELECT movieId, AVG(rating) as avg_rating, COUNT(*) as num_ratings
-                FROM ratings
-                GROUP BY movieId
-                HAVING num_ratings > 2
-            ) i
-            ON m.movieId = i.movieId
-        ) f
-        INNER JOIN (
-            SELECT m.*, r.userId, r.movieId
-                FROM movies m
-                LEFT JOIN ratings r
-                    ON m.movieId = r.movieId AND r.userId = ?
-                WHERE r.movieId IS NULL
-        ) u
-        ON f.movieId = u.movieId
-        ORDER BY f.avg_rating DESC
-    ;
-    """
-    cur.execute(recommendations_query, (userId,))
-    top_unrated_movies = cur.fetchall()
-    return(top_unrated_movies[:n])
 
-# print(get_recommendations('10', 10))
 
 def make_matrices():
     # movieId is non-contiguous, so creating a bidirectional mapping for new ids.
@@ -155,8 +126,8 @@ def training_loop(Y, R):
 
 
     optimizer = tf.keras.optimizers.Adam(learning_rate = 1e-1)
-    iterations = 20
-    lambda_ = .1
+    iterations = 300
+    lambda_ = 1
 
     for iter in range(iterations):
         with tf.GradientTape() as tape:
@@ -183,7 +154,5 @@ unique_mIds = np.array(all_movieIds).squeeze()
 np.savez("trained_weights.npz", X_weights=X_weights.numpy(), W_weights=W_weights.numpy(), b_bias=b_bias.numpy(), mean_ratings=mean_ratings, unique_mIds=unique_mIds)
 print("saved")
 
-# final_preds = tf.linalg.matmul(X, W, transpose_b = True) + b
-# final_preds = final_preds + mean_i[:, None]
 
-# print(get_recommendations(611, 10))
+

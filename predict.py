@@ -6,9 +6,6 @@ con = sqlite3.connect("movielens.db")
 cur = con.cursor()
 
 data = np.load("trained_weights.npz")
-print(type(data))
-print(data["X_weights"])
-print(type(data["X_weights"]))
 
 X_weights = data["X_weights"]
 W_weights = data["W_weights"]
@@ -16,9 +13,7 @@ b_bias = data["b_bias"]
 mean_ratings = data["mean_ratings"]
 unique_mIds = data["unique_mIds"]
 
-preds = tf.linalg.matmul(X_weights, W_weights, transpose_b = True) + b_bias + mean_ratings[:, None]
-print(type(preds))
-print(preds)
+preds = np.array(tf.linalg.matmul(X_weights, W_weights, transpose_b = True) + b_bias + mean_ratings[:, None])
 
 def get_recommendations(userId, n):
     recommendations_query = """
@@ -66,16 +61,33 @@ def personal_preds(preds, userId, n, unique_mIds):
     cur.execute(unrated_query, (userId,))
     unrated_movie_data = cur.fetchall()
     unrated_ids, unrated_titles = zip(*unrated_movie_data)
+    print(unrated_titles[:10])
     indexed_unrated_ids = np.searchsorted(unique_mIds, unrated_ids)
+    unrated_preds = pers_preds[indexed_unrated_ids]
+    # unrated_preds = np.clip(unrated_preds, 0.5, 5)
 
-    tf_indexed_unrated_ids = tf.convert_to_tensor(indexed_unrated_ids, dtype=tf.int32)
-
-    best_preds = tf.gather(pers_preds, tf_indexed_unrated_ids)
-    # print(indexed_unrated_ids[:10])
-    # print(type(indexed_unrated_ids))
-    # print(type(pers_preds))
-    # print(pers_preds[:10])
+    sorted_unrated_indices = np.argsort(unrated_preds)[::-1]
+    top_preds = unrated_preds[sorted_unrated_indices][:n]
+    top_titles = np.array(unrated_titles)[sorted_unrated_indices][:n]
     
+    dtype = np.dtype([('prediction', 'f4'), ('title', 'U100')])
 
-personal_preds(preds, '611', 10, unique_mIds)
+    top_recommendations = np.empty(top_preds.shape, dtype=dtype)
+    top_recommendations['prediction'] = top_preds
+    top_recommendations['title'] = top_titles
+
+    return(top_recommendations)
+    
+print(get_recommendations('1', 10))
+print(personal_preds(preds, '1', 10, unique_mIds))
+
+print("\n-----------------------\n")
+
+print(get_recommendations('50', 10))
+print(personal_preds(preds, '50', 10, unique_mIds))
+
+print("\n-----------------------\n")
+
+print(get_recommendations('100', 10))
+print(personal_preds(preds, '100', 10, unique_mIds))
 
