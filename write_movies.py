@@ -4,19 +4,20 @@ import pandas as pd
 con = sqlite3.connect("movielens.db")
 cur = con.cursor()
 
-# query = """
-#     SELECT *
-#     FROM movies
-# """
-# cur.execute(query)
-# movie_list = cur.fetchall()
+def write_movies():
+    query = """
+        SELECT *
+        FROM movies
+    """
+    cur.execute(query)
+    movie_list = cur.fetchall()
 
-# print(type(movie_list))
+    print(type(movie_list))
 
-# # This will create 'example.txt' or erase its current contents
-# with open("movies.txt", "w", encoding="utf-8") as file:
-#     for id, title, genres in movie_list:
-#         file.writelines(f"{id}\t{title}\t{genres}\n")
+    # This will create 'example.txt' or erase its current contents
+    with open("movies.txt", "w", encoding="utf-8") as file:
+        for id, title, genres in movie_list:
+            file.writelines(f"{id}\t{title}\t{genres}\n")
 
 def import_personal_ratings():
     my_ratings = pd.read_csv("my_ratings.txt", sep="\t", encoding="utf-8", header = None)
