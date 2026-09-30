@@ -36,15 +36,15 @@ def make_matrices():
     # Assigns the noncontiguous values to a contiguous index from 0 to N - 1, where N = # of unique movie Ids.
     m_movieIds = np.searchsorted(unique_mIds, m_movieIds)
 
-    r_matrix = np.zeros((len(unique_mIds), len(np.unique(a_userIds))))
-    b_matrix = np.zeros((len(unique_mIds), len(np.unique(a_userIds))))
+    Y_matrix = np.zeros((len(unique_mIds), len(np.unique(a_userIds))))
+    R_matrix = np.zeros((len(unique_mIds), len(np.unique(a_userIds))))
 
-    r_matrix[m_movieIds, a_userIds] = m_ratings
-    b_matrix[m_movieIds, a_userIds] = 1
-    print(r_matrix[:5, :5])
-    print(b_matrix[:5, :5])
+    Y_matrix[m_movieIds, a_userIds] = m_ratings
+    R_matrix[m_movieIds, a_userIds] = 1
+    print(Y_matrix[:5, :5])
+    print(R_matrix[:5, :5])
 
-    return(r_matrix, b_matrix)
+    return(Y_matrix, R_matrix)
 
 def cost_function(X, W, b, Y_norm, R, nm, nu, lambda_):
     preds = tf.linalg.matmul(X, W, transpose_b = True) + b
@@ -67,7 +67,7 @@ def training_loop(Y, R):
 
     optimizer = tf.keras.optimizers.Adam(learning_rate = 1e-1)
     iterations = 300
-    lambda_ = 1
+    lambda_ = .3
 
     for iter in range(iterations):
         with tf.GradientTape() as tape:

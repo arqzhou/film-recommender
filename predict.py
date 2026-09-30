@@ -15,6 +15,24 @@ unique_mIds = data["unique_mIds"]
 
 preds = np.array(tf.linalg.matmul(X_weights, W_weights, transpose_b = True) + b_bias + mean_ratings[:, None])
 
+# For debugging purposes
+def find_user_top_movies(userId, n):
+    search_query = """
+        SELECT m.movieId, m.title, r.rating
+        FROM movies m
+        INNER JOIN ratings r
+            ON m.movieId = r.movieId AND r.userId = ?
+        ORDER BY r.rating DESC
+    ;
+    """
+    cur.execute(search_query, (userId,))
+    rows = cur.fetchall()
+
+    print(len(rows))
+    for row in rows[:min(len(rows), n)] :
+        print(row)
+
+
 def get_recommendations(userId, n):
     recommendations_query = """
         SELECT f.movieId, f.title, f.avg_rating, f.num_ratings
@@ -25,7 +43,7 @@ def get_recommendations(userId, n):
                 SELECT movieId, AVG(rating) as avg_rating, COUNT(*) as num_ratings
                 FROM ratings
                 GROUP BY movieId
-                HAVING num_ratings > 2
+                HAVING num_ratings > 20
             ) i
             ON m.movieId = i.movieId
         ) f
@@ -46,20 +64,28 @@ def get_recommendations(userId, n):
 
 def personal_preds(preds, userId, n, unique_mIds):
     user_index = int(userId) - 1
+    print("using user index", user_index)
     pers_preds = preds[:, user_index]
     # Finds all movies that a parameterized user(s) has not rated.
     unrated_query = """
         SELECT m.movieId, m.title
         FROM movies m
-        LEFT JOIN ratings r
-            ON m.movieId = r.movieId AND r.userId = ?
-        WHERE r.movieId IS NULL
-        ;
+        INNER JOIN (
+            SELECT movieId
+            FROM ratings
+            GROUP BY movieId
+            HAVING COUNT(*) > 20
+            ) popular
+            ON m.movieId = popular.movieId
+        LEFT JOIN ratings u
+            ON m.movieId = u.movieId AND u.userId = ?
+        WHERE u.movieId IS NULL;
     """
     cur.execute(unrated_query, (userId,))
     unrated_movie_data = cur.fetchall()
     unrated_ids, unrated_titles = zip(*unrated_movie_data)
-    print(unrated_titles[:10])
+    # print("First 10 Unrated Titles")
+    # print(unrated_titles[:10])
     indexed_unrated_ids = np.searchsorted(unique_mIds, unrated_ids)
     unrated_preds = pers_preds[indexed_unrated_ids]
 
@@ -70,26 +96,29 @@ def personal_preds(preds, userId, n, unique_mIds):
     dtype = np.dtype([('prediction', 'f4'), ('title', 'U100')])
 
     top_recommendations = np.empty(top_preds.shape, dtype=dtype)
-    top_recommendations['prediction'] = np.clip(top_preds, 0.5, 5)
+    top_recommendations['prediction'] = top_preds
     top_recommendations['title'] = top_titles
 
     return(top_recommendations)
     
-print(get_recommendations('1', 10))
-print(personal_preds(preds, '1', 10, unique_mIds))
+# print(get_recommendations('1', 10))
+# print(personal_preds(preds, '1', 10, unique_mIds))
 
-print("\n-----------------------\n")
+# print("\n-----------------------\n")
 
-print(get_recommendations('50', 10))
-print(personal_preds(preds, '50', 10, unique_mIds))
+# print(get_recommendations('50', 10))
+# print(personal_preds(preds, '50', 10, unique_mIds))
 
-print("\n-----------------------\n")
-
+# print("\n-----------------------\n")
+find_user_top_movies('100', 30)
 print(get_recommendations('100', 10))
 print(personal_preds(preds, '100', 10, unique_mIds))
 
-print("\n-----------------------\n")
-
-print(get_recommendations('611', 10))
-print(personal_preds(preds, '611', 10, unique_mIds))
+# print("\n-----------------------\n")
+# print()
+# find_user_top_movies('611', 30)
+# print("Top Unrated Titles by Avg Rating")
+# print(get_recommendations('611', 10))
+# print("\nTop Recommended Movies for User")
+# print(personal_preds(preds, '611', 10, unique_mIds))
 

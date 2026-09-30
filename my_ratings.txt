@@ -14,3 +14,4 @@
 5	171011	Planet Earth II (2016)	Documentary
 5	179135	Blue Planet II (2017)	Documentary
 3.5	187541	Incredibles 2 (2018)	Action|Adventure|Animation|Children
+4	1	Toy Story (1995)	Adventure|Animation|Children|Comedy|Fantasy
