@@ -14,6 +14,14 @@ mean_ratings = data["mean_ratings"]
 unique_mIds = data["unique_mIds"]
 
 preds = np.array(tf.linalg.matmul(X_weights, W_weights, transpose_b = True) + b_bias + mean_ratings[:, None])
+print(data["test_movie_indices"])
+
+preds_in_test = preds[data["test_movie_indices"], data["test_user_indices"]]
+rmse = np.sqrt(np.mean((preds_in_test - data["test_true_ratings"]) ** 2))
+print("RMSE:", rmse)
+
+baseline_rmse = np.sqrt(np.mean((mean_ratings[data["test_movie_indices"]] - data["test_true_ratings"]) ** 2))
+print("Baseline RMSE:", baseline_rmse)
 
 # For debugging purposes
 def find_user_top_movies(userId, n):
@@ -74,7 +82,7 @@ def personal_preds(preds, userId, n, unique_mIds):
             SELECT movieId
             FROM ratings
             GROUP BY movieId
-            HAVING COUNT(*) > 20
+            HAVING COUNT(*) > 25
             ) popular
             ON m.movieId = popular.movieId
         LEFT JOIN ratings u
@@ -110,15 +118,15 @@ def personal_preds(preds, userId, n, unique_mIds):
 # print(personal_preds(preds, '50', 10, unique_mIds))
 
 # print("\n-----------------------\n")
-find_user_top_movies('100', 30)
-print(get_recommendations('100', 10))
-print(personal_preds(preds, '100', 10, unique_mIds))
+# find_user_top_movies('38', 30)
+# print(get_recommendations('38', 20))
+# print(personal_preds(preds, '38', 20, unique_mIds))
 
-# print("\n-----------------------\n")
-# print()
-# find_user_top_movies('611', 30)
-# print("Top Unrated Titles by Avg Rating")
-# print(get_recommendations('611', 10))
-# print("\nTop Recommended Movies for User")
-# print(personal_preds(preds, '611', 10, unique_mIds))
+print("\n-----------------------\n")
+print()
+find_user_top_movies('611', 30)
+print("Top Unrated Titles by Avg Rating")
+print(get_recommendations('611', 10))
+print("\nTop Recommended Movies for User")
+print(personal_preds(preds, '611', 10, unique_mIds))
 
