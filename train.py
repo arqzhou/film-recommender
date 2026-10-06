@@ -44,7 +44,7 @@ def make_matrices():
     print(Y_matrix[:7, :5])
     print(R_matrix[:3, :5])
 
-    return(Y_matrix, R_matrix)
+    return(Y_matrix, R_matrix, unique_mIds)
 
 def manual_train_test_split(R):
     movie_indices, user_indices = np.where(R == 1)
@@ -67,7 +67,7 @@ def manual_train_test_split(R):
 
     return(R_train, movie_indices[test_mask], user_indices[test_mask])
 
-Y, R = make_matrices()
+Y, R, unique_mIds = make_matrices()
 R_train, test_movie_indices, test_user_indices = manual_train_test_split(R)
 
 def cost_function(X, W, b, Y_norm, R_train, nm, nu, lambda_):
@@ -103,16 +103,6 @@ def training_loop(Y, R_train):
     return(X, W, b, mean_i)
 
 X_weights, W_weights, b_bias, mean_ratings = training_loop(Y, R_train)
-
-movie_query = """
-    SELECT movieId
-    FROM movies
-    ORDER BY movieId
-    ;
-    """
-cur.execute(movie_query)
-all_movieIds = cur.fetchall()
-unique_mIds = np.array(all_movieIds).squeeze()
 
 np.savez("trained_weights.npz", X_weights=X_weights.numpy(), W_weights=W_weights.numpy(), b_bias=b_bias.numpy(), mean_ratings=mean_ratings, unique_mIds=unique_mIds, test_movie_indices=test_movie_indices, test_user_indices=test_user_indices, test_true_ratings= Y[test_movie_indices, test_user_indices])
 print("saved")
