@@ -10,9 +10,7 @@ print("Path to dataset files:", path)
 
 movies = pd.read_csv(f"{path}/movies.csv")
 ratings = pd.read_csv(f"{path}/ratings.csv")
-#print(movies.head())
 print(ratings.head())
-
 
 def make_db():
     if os.path.exists("movielens.db"):
@@ -37,7 +35,6 @@ def make_db():
             FOREIGN KEY (movieId) REFERENCES movies(movieId)
         ON DELETE CASCADE
     );""")
-    #cur.executemany("INSERT INTO trips (trip_id, start_date, feed_timestamp, schedule_relationship, route_id, direction, vehicle_id) VALUES (?, ?, ?, ?, ?, ?, ?)", trips_data)
     print(movies.shape)
     cur.executemany("INSERT INTO movies (movieId, title, genres) VALUES (?, ?, ?)", movies.values.tolist())
     cur.executemany("INSERT INTO ratings (userId, movieId, rating, timestamp) VALUES (?, ?, ?, ?)", ratings.values.tolist())

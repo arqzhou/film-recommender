@@ -14,7 +14,7 @@ def write_movies():
 
     print(type(movie_list))
 
-    # This will create 'example.txt' or erase its current contents
+    # This will create 'movies.txt' or erase its current contents
     with open("movies.txt", "w", encoding="utf-8") as file:
         for id, title, genres in movie_list:
             file.writelines(f"{id}\t{title}\t{genres}\n")
@@ -22,7 +22,7 @@ def write_movies():
 def import_personal_ratings():
     my_ratings = pd.read_csv("my_ratings.txt", sep="\t", encoding="utf-8", header = None)
     insert_query = """
-    INSERT INTO ratings
+    INSERT OR REPLACE INTO ratings
     (userId, movieId, rating, timestamp)
     VALUES (611, ?, ?, 1493846415)
     """
@@ -35,7 +35,4 @@ def import_personal_ratings():
     con.commit()
     con.close()
 
-
 import_personal_ratings()
-
-
