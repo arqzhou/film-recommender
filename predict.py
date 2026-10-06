@@ -41,6 +41,7 @@ def find_user_top_movies(userId, n):
     print(f"\nTop {len(rows)} ratings for User {userId}:")
     for row in rows:
         print(f"  ({row[2]:.1f}, '{row[1]}')")
+    return(False if len(rows) == 0 else True)
 
 
 def get_recommendations(userId, n):
@@ -104,7 +105,7 @@ def personal_preds(preds, userId, unique_mIds, X_weights, W_weights, n):
 
         # Cosine similarity measures directional alignment in [-1.0, 1.0]
         cosine_sim = np.dot(X_weights, user_vec) / (safe_movie_norms * user_norm)
-
+    
     unrated_scores = cosine_sim[indexed_unrated_ids]
     unrated_preds = pers_preds[indexed_unrated_ids]
 
@@ -163,9 +164,12 @@ if __name__ == "__main__":
 
     target_user = args.user
     n = args.top_n
-    find_user_top_movies(target_user, n=30)
+    rated_any_movies = find_user_top_movies(target_user, n=30)
     get_recommendations(target_user, n=n)
-    personal_preds(preds, target_user, unique_mIds, X_weights, W_weights, n=n)
+    if rated_any_movies:
+        personal_preds(preds, target_user, unique_mIds, X_weights, W_weights, n=n)
+    else:
+        print("This user has not rated any movies, so there is nothing to refine predictions from the baseline.")
 
     con.close()
 
