@@ -1,6 +1,7 @@
 import numpy as np
 import tensorflow as tf
 import sqlite3
+import argparse
 
 con = sqlite3.connect("movielens.db")
 cur = con.cursor()
@@ -143,8 +144,29 @@ def personal_preds(preds, userId, unique_mIds, X_weights, W_weights, n):
     return(top_recommendations)
 
 if __name__ == "__main__":
-  target_user = "611"
-  find_user_top_movies(target_user, n=30)
-  get_recommendations(target_user, n=10)
-  personal_preds(preds, target_user, unique_mIds, X_weights, W_weights, n=10)
+    parser = argparse.ArgumentParser(
+        description="MovieLens Collaborative Filtering Inference"
+    )
+    parser.add_argument(
+        "--user",
+        type=str,
+        default="611",
+        help="Target userId to recommend movies for"
+    )
+    parser.add_argument(
+        "--top_n",
+        type=int,
+        default=10,
+        help="Number of Recommendations"
+    )
+    args = parser.parse_args()
+
+    target_user = args.user
+    n = args.top_n
+    find_user_top_movies(target_user, n=30)
+    get_recommendations(target_user, n=n)
+    personal_preds(preds, target_user, unique_mIds, X_weights, W_weights, n=n)
+
+    con.close()
+
 
