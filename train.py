@@ -66,8 +66,8 @@ def cost_function(X, W, b, Y_norm, R_train, nm, nu, lambda_):
     return(squared_error + reg_terms)
 
 def training_loop(Y, R_train):
-    X = tf.Variable(tf.random.normal((len(Y),25), stddev = .01, dtype=tf.float64), name = "movie_features")
-    W = tf.Variable(tf.random.normal((len(Y[0]),25), stddev = .01, dtype=tf.float64), name = "user_features")
+    X = tf.Variable(tf.random.normal((len(Y),15), stddev = .01, dtype=tf.float64), name = "movie_features")
+    W = tf.Variable(tf.random.normal((len(Y[0]),15), stddev = .01, dtype=tf.float64), name = "user_features")
     b = tf.Variable(tf.zeros((len(Y[0]),), dtype=tf.float64), name = "user_bias")
     epsilon = .00001
     mean_i = np.sum(Y * R_train, axis = 1) / (np.sum(R_train, axis = 1) + epsilon) # avoids the divide by 0 error
@@ -75,7 +75,7 @@ def training_loop(Y, R_train):
 
     optimizer = tf.keras.optimizers.Adam(learning_rate = 1e-1)
     iterations = 200
-    lambda_ = .1
+    lambda_ = 3.5
 
     for iter in range(iterations):
         with tf.GradientTape() as tape:
@@ -91,6 +91,3 @@ X_weights, W_weights, b_bias, mean_ratings = training_loop(Y, R_train)
 
 np.savez("trained_weights.npz", X_weights=X_weights.numpy(), W_weights=W_weights.numpy(), b_bias=b_bias.numpy(), mean_ratings=mean_ratings, unique_mIds=unique_mIds, test_movie_indices=test_movie_indices, test_user_indices=test_user_indices, test_true_ratings= Y[test_movie_indices, test_user_indices])
 print("The weights were saved to trained_weights.npz.")
-
-
-

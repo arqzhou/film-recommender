@@ -110,7 +110,7 @@ def personal_preds(preds, userId, unique_mIds, X_weights, W_weights, n):
     unrated_preds = pers_preds[indexed_unrated_ids]
 
     # Eliminate all movies where the user is predicted to have rated the movie below 4.5/5.
-    quality_threshold = 4.5
+    quality_threshold = 4.8
     qualifying_mask = unrated_preds >= quality_threshold
 
     if np.sum(qualifying_mask) < n:
