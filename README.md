@@ -1,6 +1,6 @@
 # Overview
 
-This project uses a recommender system trained on the [MovieLens 100k Dataset](https://www.kaggle.com/datasets/grouplens/movielens-latest-small/data) to make suggestions for a user based on their ratings. It accomplishes this by using SQLite, TensorFlow and NumPy to query the dataset and implement the collaborative filtering mechanism with matrix factorization. The final model was able to achieve a RMSE value of 1.1097 compared to the baseline RMSE of 1.1713 and offer notably more personalized recommendations (see [Insights](#insights)) with a combination of a quality threshold and affinity score rankings.
+This project uses a recommender system trained on the [MovieLens 100k Dataset](https://www.kaggle.com/datasets/grouplens/movielens-latest-small/data) to make movie suggestions for a user based on their ratings. It accomplishes this by using SQLite, TensorFlow and NumPy to query the dataset and implement the collaborative filtering mechanism with matrix factorization. The final model was able to achieve a RMSE value of 1.1097 compared to the baseline RMSE of 1.1713 and offer notably more personalized recommendations (see [Insights](#insights)) with a combination of a quality threshold and affinity score rankings.
 
 ## Jump to:
 - [Background](#background)
@@ -19,6 +19,14 @@ Note: While MovieLens itself comes from a recommender system, I found that I hav
 
 # Design Process
 Disclaimer: The code for this project was produced with the help of AI. However, I strongly believe in the importance of understanding the code I am using and have gone through any AI-generated code line-by-line. As a final check for understanding, everything I write in this README will be written by me as I walk you through the code and the choices that were made.
+
+The project structure itself is straightforward.
+1. create_db.py imports the data from Kaggle into a new file movielens.db
+2. train.py trains the model on data queried from movielens.db
+3. train.py saves its model parameters and other useful metrics on trained_weights.npz
+4. predict.py uses the data from trained_weights.npz to give baseline and personalized recommendations
+5. (Optional) write_movies.py imports ratings from my_ratings.txt into movielens.db as user 611
+     - movies.txt contains all movies in the dataset that the user can rank from
 
 
 
