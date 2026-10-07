@@ -48,3 +48,16 @@ The project structure itself is straightforward.
    cd film-recommender
    pip install -r requirements.txt
    ```
+2. Now, you can:
+     a. Create your own ratings to see recommendations (move on to step 3)
+     b. Train the model on different parameters such as lambda, lr, or iters (move on to step x)
+     c. Test the model's results (move on to step y)
+3. Creating your own ratings.
+   - Copy the data from ```movies.txt``` and paste these into a Google or Excel Spreadsheet.
+   - Insert one column to the very left, and rate movies you've watched on a scale of 0.5 to 5.0 stars.
+   - Select all columns and turn your data into a table view. Filter to show only the rows that contain a rating.
+   - Copy and paste these values into ```my_ratings.txt``` and save them.
+   - Run ```python create_db.py``` to clean the database, followed by ```python write_movies.py``` to write your new values into ```movie_lens.db```.
+   - Congratulations! Now your own ratings are a part of the dataset under the userId 611.
+4. Training the model
+   - If you wish to adjust the training of the model, you can adjust lambda
