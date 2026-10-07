@@ -9,18 +9,7 @@ This project uses a recommender system trained on the [MovieLens 100k Dataset](h
   - [Insights](#insights)
   - [Limitations](#limitations)
   - [Areas to Improve](#areas-to-improve)
-
-
-Background
-
-Design Process
-
-- Challenges & Solutions
-- Results
-- Limitations
-- Insights & What’s Next
-
-How to Use this Program Yourself
+- [How to Use Yourself](#how-to-use-yourself)
 
 # Background
 
@@ -35,5 +24,7 @@ Note: While MovieLens itself comes from a recommender system, I found that I hav
 ## Insights
 
 ## Limitations
+
+# How to Use Yourself
 
 ## Areas to Improve
