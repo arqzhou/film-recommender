@@ -58,7 +58,7 @@ def manual_train_test_split(R):
 Y, R, unique_mIds = make_matrices()
 R_train, test_movie_indices, test_user_indices = manual_train_test_split(R)
 
-def cost_function(X, W, b, Y_norm, R_train, nm, nu, lambda_):
+def cost_function(X, W, b, Y_norm, R_train, lambda_):
     preds = tf.linalg.matmul(X, W, transpose_b = True) + b
     squared_error = tf.reduce_sum(((preds - Y_norm) ** 2) * R_train)
     reg_terms = lambda_*((tf.reduce_sum(X ** 2))) + lambda_*((tf.reduce_sum(W ** 2)))
