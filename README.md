@@ -50,8 +50,8 @@ The project structure itself is straightforward.
    ```
 2. Now, you can:
      a. Create your own ratings to see recommendations (move on to step 3)
-     b. Train the model on different parameters such as lambda, lr, or iters (move on to step x)
-     c. Test the model's results (move on to step y)
+     b. Train the model on different parameters such as lambda, lr, or iters (move straight to step 4)
+     c. Test the model's results (move straight to step 5)
 3. Creating your own ratings.
    - Copy the data from ```movies.txt``` and paste these into a Google or Excel Spreadsheet.
    - Insert one column to the very left, and rate movies you've watched on a scale of 0.5 to 5.0 stars.
@@ -59,5 +59,69 @@ The project structure itself is straightforward.
    - Copy and paste these values into ```my_ratings.txt``` and save them.
    - Run ```python create_db.py``` to clean the database, followed by ```python write_movies.py``` to write your new values into ```movie_lens.db```.
    - Congratulations! Now your own ratings are a part of the dataset under the userId 611.
-4. Training the model
-   - If you wish to adjust the training of the model, you can adjust lambda
+4. Training the model.
+   - If you wish to adjust the training of the model, you can adjust the parameters at the top of the ```training_loop()``` function.
+   ```
+   def training_loop(Y, R_train):
+    # Adjust parameters here
+    iters = 200
+    lambda_ = 3.5
+    k = 15
+    lr = 1e-1
+   ```
+   - Then, go ahead and train the model by running ```python train.py```. This will save your new weights to ```trained_weights.npz```.
+5. Test the model.
+   - To test the model, simply run the command below.
+   - <userId> can be any number 1-610. 611 will be your user ratings if you added them in step 2.
+   - <top_n> is the number of recommendations you want.
+   - This code will return up to the top 30 highest rated movies by the user, along with baseline recommendations (top n movies by average rating) and personalized recommendations (top n movies decided by collaborative filtering model and affinity)
+   ```
+   python predict.py --user <userId> --top_n <top_n>
+   ```
+
+   Below is an example output for my 16 ratings as user 611.
+
+   ```
+   Top 16 ratings for User 611:
+   (5.0, 'The Blue Planet (2001)')
+   (5.0, 'Kung Fu Panda 3 (2016)')
+   (5.0, 'Your Name. (2016)')
+   (5.0, 'Moana (2016)')
+   (5.0, 'Planet Earth II (2016)')
+   (5.0, 'Blue Planet II (2017)')
+   (4.5, 'Zootopia (2016)')
+   (4.5, 'The Man Who Knew Infinity (2016)')
+   (4.5, 'Hidden Figures (2016)')
+   (4.0, 'Ice Age: The Great Egg-Scapade (2016)')
+   (4.0, 'Sully (2016)')
+   (3.5, 'The Angry Birds Movie (2016)')
+   (3.5, 'Cars 3 (2017)')
+   (3.5, 'Incredibles 2 (2018)')
+   (3.0, 'Finding Dory (2016)')
+   (2.0, 'Storks (2016)')
+
+   Top 10 baseline recommendations for User 611:
+   (4.43 avg, 317 reviews, 'Shawshank Redemption, The (1994)')
+   (4.33 avg, 27 reviews, 'Sunset Blvd. (a.k.a. Sunset Boulevard) (1950)')
+   (4.31 avg, 29 reviews, 'Philadelphia Story, The (1940)')
+   (4.30 avg, 25 reviews, 'In the Name of the Father (1993)')
+   (4.30 avg, 45 reviews, 'Lawrence of Arabia (1962)')
+   (4.29 avg, 29 reviews, 'Hoop Dreams (1994)')
+   (4.29 avg, 192 reviews, 'Godfather, The (1972)')
+   (4.29 avg, 26 reviews, 'Harold and Maude (1971)')
+   (4.28 avg, 25 reviews, 'Logan (2017)')
+   (4.27 avg, 218 reviews, 'Fight Club (1999)')
+
+   Top 10 personalized recommendations for User 611:
+   (Affinity: +0.625, Pred: 4.53, 'Princess Mononoke (Mononoke-hime) (1997)')
+   (Affinity: +0.459, Pred: 4.74, 'Schindler's List (1993)')
+   (Affinity: +0.415, Pred: 4.54, 'Glory (1989)')
+   (Affinity: +0.414, Pred: 4.54, 'Shine (1996)')
+   (Affinity: +0.405, Pred: 4.64, 'Like Water for Chocolate (Como agua para chocolate) (1992)')
+   (Affinity: +0.404, Pred: 4.91, 'Sunset Blvd. (a.k.a. Sunset Boulevard) (1950)')
+   (Affinity: +0.403, Pred: 4.59, 'Guardians of the Galaxy (2014)')
+   (Affinity: +0.400, Pred: 4.65, 'Princess Bride, The (1987)')
+   (Affinity: +0.384, Pred: 4.65, 'Dark Knight, The (2008)')
+   (Affinity: +0.373, Pred: 4.53, 'Inglourious Basterds (2009)')
+   ```
+   
