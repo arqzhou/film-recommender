@@ -66,18 +66,22 @@ def cost_function(X, W, b, Y_norm, R_train, lambda_):
     return(squared_error + reg_terms)
 
 def training_loop(Y, R_train):
-    X = tf.Variable(tf.random.normal((len(Y),15), stddev = .01, dtype=tf.float64), name = "movie_features")
-    W = tf.Variable(tf.random.normal((len(Y[0]),15), stddev = .01, dtype=tf.float64), name = "user_features")
+    iters = 200
+    lambda_ = 3.5
+    k = 15
+    lr = 1e-1
+
+    X = tf.Variable(tf.random.normal((len(Y),k), stddev = .01, dtype=tf.float64), name = "movie_features")
+    W = tf.Variable(tf.random.normal((len(Y[0]),k), stddev = .01, dtype=tf.float64), name = "user_features")
     b = tf.Variable(tf.zeros((len(Y[0]),), dtype=tf.float64), name = "user_bias")
     epsilon = .00001
     mean_i = np.sum(Y * R_train, axis = 1) / (np.sum(R_train, axis = 1) + epsilon) # avoids the divide by 0 error
     Y_norm = Y - mean_i[:, None] * R_train
 
-    optimizer = tf.keras.optimizers.Adam(learning_rate = 1e-1)
-    iterations = 200
-    lambda_ = 3.5
+    optimizer = tf.keras.optimizers.Adam(learning_rate = lr)
+    
 
-    for iter in range(iterations):
+    for iter in range(iters):
         with tf.GradientTape() as tape:
             cost_value = cost_function(X, W, b, Y_norm, R_train, len(Y), len(Y[0]), lambda_)
         grads = tape.gradient(cost_value, [X, W, b])

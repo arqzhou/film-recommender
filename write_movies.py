@@ -26,12 +26,10 @@ def import_personal_ratings():
     (userId, movieId, rating, timestamp)
     VALUES (611, ?, ?, 1493846415)
     """
-    print(my_ratings[0])
     formatted_ratings = my_ratings[[1,0]]
 
     cur.executemany(insert_query, formatted_ratings.values.tolist())
 
-    print(formatted_ratings.head())
     con.commit()
     con.close()
 
