@@ -108,15 +108,38 @@ Disclaimer: The code for this project was produced with the help of AI. However,
 
 To explain the main mathematical concept of the model, it's best to see an example table. 8 different users gave ratings for 5 movies, leaving them blanked if they haven't been watched.
 
-| movie | user 1 | user 2 | user 3 | user 4 | user 5 | *user 6* | user 7 | user 8 |
-| --- | --- | --- | --- | --- | --- | --- | --- | --- |
-| **Movie 1** | .5 | ? | 5 | 4.5 | 1 | 2 | ? | ? |
-| **Movie 2** | 5 | 3.5 | 2 | ? | 5 | 4 | 5 | 2 |
-| **Movie 3** | ? | ? | 1.5 | ? | ? | 5 | ? | ? |
-| **Movie 4** | 4 | 5 | 1 | .5 | 4 | ? | 4.5 | 3 |
-| **Movie 5** | ? | 1 | ? | 4 | ? | ? | ? | 1 |
+| movie | user 1 | user 2 | user 3 | user 4 | user 5 | user 6 |
+| --- | --- | --- | --- | --- | --- | --- |
+| **Movie 1** | .5 | ? | 5 | 4.5 | 1 | 2 |
+| **Movie 2** | 5 | 3.5 | 2 | ? | 5 | 4 |
+| **Movie 3** | ? | ? | 1.5 | ? | ? | 5 |
+| **Movie 4** | 4 | 5 | 1 | .5 | 4 | ? |
+| **Movie 5** | ? | 1 | ? | 4 | ? | ? |
 
-Based on this table, it might be possible to infer that movies 2, 3, and 4 are similar since users that have watched multiple of these have all rated them highly (1, 2, 5, and 7). For the same reason, movies 1 and 5 are likely similar, but they are also likely very different from the other 3 movies because the ratings tend to be quite disparate in users who have watched both groups. Thus, we can use information we've inferred about the user and about the movie to predict what a certain user might rate a certain movie. For example, we can likely infer that *user 6* will rate movie 4 highly but dislike movie 1.
+Based on this table, we can see that movies 2, 3, and 4 are similar because they share similar ratings between users who have watched multiple of them. We can also tell that these movies are different from movies 1 and 5 since they often have very different ratings. Because of this, we might infer that there is some hidden (latent) factor that differentiates these movies, such as genre, director, art style, etc..
+
+For the example, let's say movies 2, 3, and 4 are animated movies and movies 1 and 5 are IMAX war movies. These hidden (latent) factors don't just apply to movies, they also apply to users. Continuing the example, we can infer that users 1, 2, 5, and 6 prefer animated movies, and users 3 and 4 prefer the IMAX movies. This is how we crack the code of predicting how a user might rate a movie they've never seen before: if both the user and the movie heavily appeal to the same factor, then we can predict a positive rating.
+To represent these preferences mathematically, we can create two new tables (matrices).
+| movie | animated movies | IMAX war movie |
+| --- | --- | --- |
+| **Movie 1** | (1/10) | (8/10) |
+| **Movie 2** | (9/10) | (0/10) |
+
+| user | animated movies | IMAX war movie |
+| --- | --- | --- |
+| **User 4** | (2/10) | (9/10) |
+| **User 5** | (8/10) | (3/10) |
+
+To compare how movie/user preferences align, we can just take the sum of their products for each preference. So for movie 1 and user 4, we'd get (1/10)(2/10) + (8/10)(9/10) = (74/100), which is a lot better of a match than movie 1 and user 5 (1/10)(9/10) + (8/10)(3/10) = (33/100). By multiplying our matrices together, we can predict which movies will be liked/disliked based on whether they appeal to similar preferences.
+
+| movie | user 4 | user 5 |
+| --- | --- | --- |
+| **Movie 1** | (74/100) | (33/100) |
+| **Movie 2** | (18/100) | (72/100) |
+
+Note that the number of hidden factors is not limited to just 2. The math works whether k latent factors = 2 or 200. This current model uses 15 hidden factors.
+
+Okay, now we can see how hidden factors can be useful, but how do we figure out each user/movie's values for each latent factor? This is where gradient descent comes in. Each user and movie is randomly assigned a value for every hidden factor to start. Then, every actual movie-user rating pair is multiplied together to form a prediction, whose difference from the actual rating is called an error. The total error is the sum of all these errors. As you can imagine, the total error at the start is extremely high, but not all is lost. When calculating the cost, TensorFlow's ```tape.gradient``` automatically calculates the value of each derivative, which points every value in the direction it needs to change (especially if it contributed to the cost function). ```apply_gradients``` brings these values slightly closer to their real preferences over time, and after 200 iterations, the error is a lot lower. Eventually, these values get to the point where more iterations doesn't really give us a better model (lower RMSE or good recommendations), and training should be stopped.
 
 ## Challenges and Solutions
 
