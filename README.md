@@ -106,14 +106,17 @@ Note: While MovieLens itself comes from a recommender system, I found that I hav
 # Technical Design Process
 Disclaimer: The code for this project was produced with the help of AI. However, I strongly believe in the importance of understanding the code I am using and have gone through any AI-generated code line-by-line. As a final check for understanding, everything I write in this README will be written by me as I walk you through the code and the choices that were made.
 
-The project structure itself is straightforward.
-1. ```create_db.py``` imports the data from Kaggle into a new file ```movielens.db```
-2. ```train.py``` trains the model on data queried from ```movielens.db```
-3. ```train.py``` saves its model parameters and other useful metrics on ```trained_weights.npz```
-4. ```predict.py``` uses the data from ```trained_weights.npz``` to give baseline and personalized recommendations
-5. (optional) ```write_movies.py``` imports ratings from ```my_ratings.txt``` into ```movielens.db``` as user 611
-     - ```movies.txt``` contains all movies in the dataset that the user can rank from
+To explain the main mathematical concept of the model, it's best to see an example table. 8 different users gave ratings for 5 movies, leaving them blanked if they haven't been watched.
 
+| movie | user 1 | user 2 | user 3 | user 4 | user 5 | *user 6* | user 7 | user 8 |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| **Movie 1** | .5 | ? | 5 | 4.5 | 1 | 2 | ? | ? |
+| **Movie 2** | 5 | 3.5 | 2 | ? | 5 | 4 | 5 | 2 |
+| **Movie 3** | ? | ? | 1.5 | ? | ? | 5 | ? | ? |
+| **Movie 4** | 4 | 5 | 1 | .5 | 4 | ? | 4.5 | 3 |
+| **Movie 5** | ? | 1 | ? | 4 | ? | ? | ? | 1 |
+
+Based on this table, it might be possible to infer that movies 2, 3, and 4 are similar since users that have watched multiple of these have all rated them highly (1, 2, 5, and 7). For the same reason, movies 1 and 5 are likely similar, but they are also likely very different from the other 3 movies because the ratings tend to be quite disparate in users who have watched both groups. Thus, we can use information we've inferred about the user and about the movie to predict what a certain user might rate a certain movie. For example, we can likely infer that *user 6* will rate movie 4 highly but dislike movie 1.
 
 ## Challenges and Solutions
 
