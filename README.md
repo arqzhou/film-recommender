@@ -6,6 +6,7 @@ This project uses a recommender system trained on the [MovieLens 100k Dataset](h
 - [Background](#background)
 - [Design Process](#design-process)
   - [Challenges and Solutions](#challenges-and-solutions)
+  - [Example Results](#example-results)
   - [Insights](#insights)
   - [Limitations](#limitations)
   - [Areas to Improve](#areas-to-improve)
@@ -25,12 +26,14 @@ The project structure itself is straightforward.
 2. train.py trains the model on data queried from movielens.db
 3. train.py saves its model parameters and other useful metrics on trained_weights.npz
 4. predict.py uses the data from trained_weights.npz to give baseline and personalized recommendations
-5. (Optional) write_movies.py imports ratings from my_ratings.txt into movielens.db as user 611
+5. (optional) write_movies.py imports ratings from my_ratings.txt into movielens.db as user 611
      - movies.txt contains all movies in the dataset that the user can rank from
 
 
 
 ## Challenges and Solutions
+
+## Example Results
 
 ## Insights
 
