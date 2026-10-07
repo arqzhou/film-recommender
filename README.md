@@ -6,6 +6,9 @@ This project uses a recommender system trained on the [MovieLens 100k Dataset](h
 - [Background](#background)
 - [Design Process](#design-process)
   - [Challenges and Solutions](#challenges-and-solutions)
+  - [Insights](#insights)
+  - [Limitations](#limitations)
+  - [Areas to Improve](#areas-to-improve)
 
 
 Background
@@ -28,3 +31,9 @@ Note: While MovieLens itself comes from a recommender system, I found that I hav
 # Design Process
 
 ## Challenges and Solutions
+
+## Insights
+
+## Limitations
+
+## Areas to Improve
