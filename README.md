@@ -50,8 +50,8 @@ Note: While MovieLens itself comes from a recommender system, I found that I hav
    - Then, go ahead and train the model by running ```python train.py```. This will save your new weights to ```trained_weights.npz```.
 6. Test the model.
    - To test the model, simply run the command below.
-   - <userId> can be any number 1 through 610. 611 will be your user ratings if you added them in step 2.
-   - <top_n> is the number of recommendations you want.
+   - fill in <userId> with any number 1 through 610. 611 will be your user ratings if you added them in step 2.
+   - fill in <top_n> with the number of recommendations you want.
    - This code will return up to the top 30 highest rated movies by the user, along with baseline recommendations (top n movies by average rating) and personalized recommendations (top n movies decided by collaborative filtering model and affinity)
    ```
    python predict.py --user <userId> --top_n <top_n>
@@ -130,7 +130,7 @@ To represent these preferences mathematically, we can create two new tables (mat
 | **User 4** | (2/10) | (9/10) |
 | **User 5** | (8/10) | (3/10) |
 
-To compare how movie/user preferences align, we can just take the sum of their products for each preference. So for movie 1 and user 4, we'd get (1/10)(2/10) + (8/10)(9/10) = (74/100), which is a lot better of a match than movie 1 and user 5 (1/10)(9/10) + (8/10)(3/10) = (33/100). By multiplying our matrices together, we can predict which movies will be liked/disliked based on whether they appeal to similar preferences.
+To compare how movie/user preferences align, we can just take the sum of their products for each preference. So for movie 1 and user 4, we'd get (1/10)(2/10) + (8/10)(9/10) = (74/100), which is a lot better of a match than movie 1 and user 5 (1/10)(9/10) + (8/10)(3/10) = (33/100). On a single-movie single-user basis, this can be computed with a dot product, and on a large scale, this is simply matrix multiplication (m movies x k factors) X (k factors x n users^T). By multiplying our matrices together, we can predict which movies will be liked/disliked based on whether they appeal to similar preferences for every movie-user pair.
 
 | movie | user 4 | user 5 |
 | --- | --- | --- |
@@ -139,7 +139,9 @@ To compare how movie/user preferences align, we can just take the sum of their p
 
 Note that the number of hidden factors is not limited to just 2. The math works whether k latent factors = 2 or 200. This current model uses 15 hidden factors.
 
-Okay, now we can see how hidden factors can be useful, but how do we figure out each user/movie's values for each latent factor? This is where gradient descent comes in. Each user and movie is randomly assigned a value for every hidden factor to start. Then, every actual movie-user rating pair is multiplied together to form a prediction, whose difference from the actual rating is called an error. The total error is the sum of all these errors. As you can imagine, the total error at the start is extremely high, but not all is lost. When calculating the cost, TensorFlow's ```tape.gradient``` automatically calculates the value of each derivative, which points every value in the direction it needs to change (especially if it contributed to the cost function). ```apply_gradients``` brings these values slightly closer to their real preferences over time, and after 200 iterations, the error is a lot lower. Eventually, these values get to the point where more iterations doesn't really give us a better model (lower RMSE or good recommendations), and training should be stopped.
+Okay, now we can see how hidden factors can be useful, but how do we figure out each user/movie's values for each latent factor? This is where gradient descent comes in. Each user and movie is randomly assigned a value for every hidden factor to start. Then, we compare the dot product of movie X user to the actual rating (unrated movie-user pairs are skipped over). The total error is the sum of all these errors.
+
+As you can imagine, the total error at the start is extremely high, but not all is lost. When calculating the cost, TensorFlow's ```tape.gradient``` automatically calculates the value of each derivative, which points every value a user's or movie's k-vector in the direction it needs to change (especially if it heavily contributed to the cost function). ```apply_gradients``` brings these values slightly closer to their real preferences over time, and after 200 iterations, the error is much lower. Eventually, these values get to the point where more iterations doesn't really give us a better model (lower RMSE or good recommendations), and training should be stopped.
 
 ## Challenges and Solutions
 
