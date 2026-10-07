@@ -66,6 +66,7 @@ def cost_function(X, W, b, Y_norm, R_train, lambda_):
     return(squared_error + reg_terms)
 
 def training_loop(Y, R_train):
+    # Adjust parameters here
     iters = 200
     lambda_ = 3.5
     k = 15
@@ -80,7 +81,6 @@ def training_loop(Y, R_train):
 
     optimizer = tf.keras.optimizers.Adam(learning_rate = lr)
     
-
     for iter in range(iters):
         with tf.GradientTape() as tape:
             cost_value = cost_function(X, W, b, Y_norm, R_train, len(Y), len(Y[0]), lambda_)
