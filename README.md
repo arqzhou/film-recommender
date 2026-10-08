@@ -156,12 +156,21 @@ There are a few more details in the training stage, such as the use of normaliza
 
 ## Challenges and Solutions
 ### Cold Start Problem
-The Cold Start problem was very evident 
-Normalized with popular movies (avg_mean)
-Implemented thresholds for certiacerain movies
+The Cold Start Problem asks the question: how can we recommend good movies to watch if the user has barely rated any movies? For example, I haven't watched that many movies in this dataset, so I only rated 17 movies, compared to user 100, who had 148 ratings.
+
+If a user has not rated any movies, then we can do no better than recommending the movies with the highest average rating. However, these ratings are still not ideal because a niche movie with three 5-star ratings will outperform well-known hits, even though well-known hits are much safer recommendations, so we restrict these recommendations to movies with more than 20 ratings: ```HAVING COUNT(*) > 20```.
+
+If a user has only rated a few movies, our model will likely perform better if we start with average ratings as a baseline, rather than pretending every movie is equal. So, our model evaluates error based on the user's actual difference from the mean rating minus the user's predicted difference from the mean. That way, a 5 on badly-regarded movie(avg 2.0 rating) is much more notable than a 5 on beloved movie (avg 4.5 rating). To accomplish this, we calculate each movie's average rating and subtract that from all of its ratings.
+- Would turn into (+2.5 diff) and (+0.5 diff) ratings.
 
 ### Std Deviation
 8.9 random norm was blowing up values.
+Talk about the formula
+```
+X = tf.Variable(tf.random.normal((len(Y),k), stddev = .01, dtype=tf.float64), name = "movie_features")
+W = tf.Variable(tf.random.normal((len(Y[0]),k), stddev = .01, dtype=tf.float64), name = "user_features")
+b = tf.Variable(tf.zeros((len(Y[0]),), dtype=tf.float64), name = "user_bias")
+```
 
 ### Data Leakage
 R_train (RMSE values)
@@ -170,6 +179,8 @@ Masking
 ### Affinity
 Solves the arbitrary clipping
 Cosine similarity
+
+Towards the end of testing the model, I realized that I'd oftentimes get predictions over 5 stars, which isn't possible. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between 5-star-rated movies. However, this meant that the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings. So, I decided to implement a tiebreaker that let more personalization show through in the recommendations.
 
 ### Quality vs. Personalization
 Cosine similarity after meeting a quality predicted rating threshold of >= 4.8.
@@ -186,5 +197,6 @@ sparse, subjective final evaluation.
 
 ## Areas to Improve
 make it easier to add ratings, or possibly make it autonomous.
+mix in content-based filtering (genre tags are a part of the dataset)
 
    
