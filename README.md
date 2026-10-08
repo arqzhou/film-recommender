@@ -118,7 +118,7 @@ To explain the main mathematical concept of the model, it's best to see an examp
 
 Based on this table, we can see that movies 2, 3, and 4 are similar because they share similar ratings between users who have watched multiple of them. We can also tell that these movies are different from movies 1 and 5 since they often have very different ratings. Because of this, we might infer that there is some hidden (latent) factor that differentiates these movies, such as genre, director, art style, etc..
 
-For the example, let's say movies 2, 3, and 4 are animated movies and movies 1 and 5 are IMAX war movies. These hidden (latent) factors don't just apply to movies, they also apply to users. Continuing the example, we can infer that users 1, 2, 5, and 6 prefer animated movies, and users 3 and 4 prefer the IMAX movies. This is how we crack the code of predicting how a user might rate a movie they've never seen before: if both the user and the movie heavily appeal to the same factor, then we can predict a positive rating.
+For the example, let's say movies 2, 3, and 4 are animated movies and movies 1 and 5 are IMAX war movies. These hidden (latent) factors don't just affect movies, they also apply to users. Continuing the example, we can infer that users 1, 2, 5, and 6 prefer animated movies, and users 3 and 4 prefer the IMAX movies. This is how we crack the code of predicting how a user might rate a movie they've never seen before: if both the user and the movie heavily appeal to the same factor, then we can predict a positive rating.
 To represent these preferences mathematically, we can create two new tables (matrices).
 | movie | animated movies | IMAX war movie |
 | --- | --- | --- |
@@ -130,28 +130,61 @@ To represent these preferences mathematically, we can create two new tables (mat
 | **User 4** | (2/10) | (9/10) |
 | **User 5** | (8/10) | (3/10) |
 
-To compare how movie/user preferences align, we can just take the sum of their products for each preference. So for movie 1 and user 4, we'd get (1/10)(2/10) + (8/10)(9/10) = (74/100), which is a lot better of a match than movie 1 and user 5 (1/10)(9/10) + (8/10)(3/10) = (33/100). On a single-movie single-user basis, this can be computed with a dot product, and on a large scale, this is simply matrix multiplication (m movies x k factors) X (k factors x n users^T). By multiplying our matrices together, we can predict which movies will be liked/disliked based on whether they appeal to similar preferences for every movie-user pair.
+To compare how movie/user preferences align, we can just take the sum of their products for each preference.
+For movie 1 and user 4: $(\frac{1}{10})(\frac{2}{10})+(\frac{8}{10})(\frac{9}{10}) =  m_1 \cdot u_4 = \frac{74}{100}$
+
+For movie 1 and user 5: $(\frac{1}{10})(\frac{8}{10})+(\frac{8}{10})(\frac{3}{10}) = m_1 \cdot u_5 =\frac{33}{100}$
+
+As we can see, we are essentially taking the dot product of the user and movie k-vectors, and larger dot products show that the hidden features of the movie and user line up better.
+On a single-movie single-user basis, this can be computed with a dot product, and on a large scale, this is simply matrix multiplication:
+$(m\text{ movies} \times k\text{ hidden factors}) \times (k\text{ hidden factors} \times n\text{ users})$.
+
+By multiplying our matrices together, we can predict which movies will be liked/disliked based on whether they appeal to similar preferences for every movie-user pair.
 
 | movie | user 4 | user 5 |
 | --- | --- | --- |
 | **Movie 1** | (74/100) | (33/100) |
 | **Movie 2** | (18/100) | (72/100) |
 
-Note that the number of hidden factors is not limited to just 2. The math works whether k latent factors = 2 or 200. This current model uses 15 hidden factors.
+Note that the number of hidden factors is not limited to just 2. Because movie and user k-vectors are always k-long, the multiplication works whether k latent factors = 2 or 200. This current model uses 15 hidden factors.
 
-Okay, now we can see how hidden factors can be useful, but how do we figure out each user/movie's values for each latent factor? This is where gradient descent comes in. Each user and movie is randomly assigned a value for every hidden factor to start. Then, we compare the dot product of movie X user to the actual rating (unrated movie-user pairs are skipped over). The total error is the sum of all these errors.
+Okay, now we can see how hidden factors can be useful, but how do we figure out each user/movie's values for each latent factor? This is where gradient descent comes in. Each user and movie is randomly assigned a value for every hidden factor to start. Then, we compare $m_i \cdot u_j$ to the actual rating (unrated movie-user pairs are skipped over). The total error (cost) is the sum of all these errors.
 
-As you can imagine, the total error at the start is extremely high, but not all is lost. When calculating the cost, TensorFlow's ```tape.gradient``` automatically calculates the value of each derivative, which points every value a user's or movie's k-vector in the direction it needs to change (especially if it heavily contributed to the cost function). ```apply_gradients``` brings these values slightly closer to their real preferences over time, and after 200 iterations, the error is much lower. Eventually, these values get to the point where more iterations doesn't really give us a better model (lower RMSE or good recommendations), and training should be stopped.
+As you can imagine, the cost at the start is extremely high, but not all is lost. When calculating the cost, TensorFlow's ```tape.gradient``` automatically calculates the value of each derivative, which points every value in a user's or movie's k-vector in the direction it needs to change to lower the cost (especially if it heavily contributed to the cost function). ```apply_gradients``` brings these values slightly closer to their real preferences over time, and after 200 iterations, the error is much lower. Eventually, these values get to the point where more iterations doesn't really give us a better model (lower RMSE or good recommendations), and training should be stopped. Now, as long as you have every user's k-vector and every movie's k-vector, you can use those parameters to predict how any of those users will rate any of those movies.
+
+There are a few more details in the training stage, such as the use of normalization, R_train masking, and the bias variable, and there is also big decisions made in ```predict.py```, but these will be discussed in the next section. Most of these decisions were made in reaction to a challenge that came up.
 
 ## Challenges and Solutions
+### Cold Start Problem
+The Cold Start problem was very evident 
+Normalized with popular movies (avg_mean)
+Implemented thresholds for certiacerain movies
+
+### Std Deviation
+8.9 random norm was blowing up values.
+
+### Data Leakage
+R_train (RMSE values)
+Masking
+
+### Affinity
+Solves the arbitrary clipping
+Cosine similarity
+
+### Quality vs. Personalization
+Cosine similarity after meeting a quality predicted rating threshold of >= 4.8.
+
 
 ## Example Results
+4 kinds of users
 
 ## Insights
+recs etc.
 
 ## Limitations
+sparse, subjective final evaluation.
 
 ## Areas to Improve
-
+make it easier to add ratings, or possibly make it autonomous.
 
    
