@@ -146,7 +146,7 @@ By multiplying our matrices together, we can predict which movies will be liked/
 | **Movie 1** | (74/100) | (33/100) |
 | **Movie 2** | (18/100) | (72/100) |
 
-Note that the number of hidden factors is not limited to just 2. Because movie and user k-vectors are always k-long, the multiplication works whether k latent factors = 2 or 200. This current model uses 15 hidden factors.
+Note that the number of hidden factors is not limited to just 2. Because movie and user k-vectors are always k-long, the multiplication works whether k latent factors = 2 or 200. This current model uses ```k=15``` hidden factors.
 
 Okay, now we can see how hidden factors can be useful, but how do we figure out each user/movie's values for each latent factor? This is where gradient descent comes in. Each user and movie is randomly assigned a value for every hidden factor to start. Then, we compare $m_i \cdot u_j$ to the actual rating (unrated movie-user pairs are skipped over). The total error (cost) is the sum of all these errors.
 
@@ -158,10 +158,16 @@ There are a few more details in the training stage, such as the use of normaliza
 ### Cold Start Problem
 The Cold Start Problem asks the question: how can we recommend good movies to watch if the user has barely rated any movies? For example, I haven't watched that many movies in this dataset, so I only rated 17 movies, compared to user 100, who had 148 ratings.
 
-If a user has not rated any movies, then we can do no better than recommending the movies with the highest average rating. However, these ratings are still not ideal because a niche movie with three 5-star ratings will outperform well-known hits, even though well-known hits are much safer recommendations, so we restrict these recommendations to movies with more than 20 ratings: ```HAVING COUNT(*) > 20```.
+To help address this and acknowledge that certain movies are simply higher-rated than others, I implemented a version of mean normalization. This means for every movie-user pair where there was an actual rating, we subtract from it the average rating users gave that movie. Now, the model is trying to predict the difference from the average rating someone might rate a movie, rather than the rating of the movie itself. This is implemented here:
+```
+epsilon = .00001
+mean_i = np.sum(Y * R_train, axis = 1) / (np.sum(R_train, axis = 1) + epsilon) # avoids the divide by 0 error
+Y_norm = Y - mean_i[:, None] * R_train
+```
 
-If a user has only rated a few movies, our model will likely perform better if we start with average ratings as a baseline, rather than pretending every movie is equal. So, our model evaluates error based on the user's actual difference from the mean rating minus the user's predicted difference from the mean. That way, a 5 on badly-regarded movie(avg 2.0 rating) is much more notable than a 5 on beloved movie (avg 4.5 rating). To accomplish this, we calculate each movie's average rating and subtract that from all of its ratings.
-- Would turn into (+2.5 diff) and (+0.5 diff) ratings.
+This means that the baseline is now based on average movie ratings, rather than every movie being the same. If a user has never rated any movies, this model will just recommend the top-average-rated movies, and every additional rating a user has made gives the model a greater chance to personalize from this baseline. By starting to personalize from this baseline, this model will recommend the highly-rated movies to begin with, which is much safer than recommending movies at random.
+
+It is important to know that some niche movies are rated way less than popular movies in this dataset, so I implemented a requirement of more than 20 ratings to be eligible to be recommeneded. This prevents a movie with three 5-star ratings from being recommended over a movie with an average rating of 300 over 4.5 ratings, which is typically the much safer bet.
 
 ### Std Deviation
 8.9 random norm was blowing up values.
