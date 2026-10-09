@@ -1,6 +1,6 @@
 # Overview
 
-This project uses a recommender system trained on the [MovieLens 100k Dataset](https://www.kaggle.com/datasets/grouplens/movielens-latest-small/data) to make movie suggestions for a user based on their ratings. It accomplishes this by using SQLite, NumPy, and TensorFlow to query the dataset and implement the collaborative filtering mechanism with matrix factorization. The final model was able to achieve a RMSE value of 1.1097 compared to the baseline RMSE of 1.1713 and offer notably more personalized recommendations (see [Insights](#insights)) with a combination of a quality threshold and affinity score rankings.
+This project uses a recommender system trained on the [MovieLens 100k Dataset](https://www.kaggle.com/datasets/grouplens/movielens-latest-small/data) to make movie suggestions for a user based on their ratings. It accomplishes this by using SQLite, NumPy, and TensorFlow to query the dataset and implement the collaborative filtering mechanism with matrix factorization. The final model was able to achieve a RMSE value of 1.1097 compared to the baseline RMSE of 1.1713 and offer notably more personalized recommendations (see [Insights](#insights)) through a combination of a quality threshold and affinity score rankings.
 
 ## Jump to:
 - [Background](#background)
@@ -116,7 +116,7 @@ To explain the main mathematical concept of the model, it's best to see an examp
 | **Movie 4** | 4 | 5 | 1 | .5 | 4 | ? |
 | **Movie 5** | ? | 1 | ? | 4 | ? | ? |
 
-Based on this table, we can see that movies 2, 3, and 4 are similar because they share similar ratings between users who have watched multiple of them. We can also tell that these movies are different from movies 1 and 5 since they often have very different ratings. Because of this, we might infer that there is some hidden (latent) factor that differentiates these movies, such as genre, director, art style, etc..
+Based on this table, we can see that movies 2, 3, and 4 are similar because they share similar ratings between users who have watched multiple of them. We can also tell that these movies are different from movies 1 and 5 since they often have very different ratings. Because of this, we might infer that there is some hidden (latent) factor that differentiates these movies, such as genre, director, art style, etc.. This can be anything the model learns to pick up on.
 
 For the example, let's say movies 2, 3, and 4 are animated movies and movies 1 and 5 are IMAX war movies. These hidden (latent) factors don't just affect movies, they also apply to users. Continuing the example, we can infer that users 1, 2, 5, and 6 prefer animated movies, and users 3 and 4 prefer the IMAX movies. This is how we crack the code of predicting how a user might rate a movie they've never seen before: if both the user and the movie heavily appeal to the same factor, then we can predict a positive rating.
 To represent these preferences mathematically, we can create two new tables (matrices).
@@ -165,28 +165,72 @@ mean_i = np.sum(Y * R_train, axis = 1) / (np.sum(R_train, axis = 1) + epsilon) #
 Y_norm = Y - mean_i[:, None] * R_train
 ```
 
-This means that the baseline is now based on average movie ratings, rather than every movie being the same. If a user has never rated any movies, this model will just recommend the top-average-rated movies, and every additional rating a user has made gives the model a greater chance to personalize from this baseline. By starting to personalize from this baseline, this model will recommend the highly-rated movies to begin with, which is much safer than recommending movies at random.
+This means that the baseline is now based on average movie ratings, rather than every movie being the same. If a user has never rated any movies, this model will just recommend the top-average-rated movies, and every additional rating a user has made gives the model a greater chance to personalize *from this baseline*. 
 
-It is important to know that some niche movies are rated way less than popular movies in this dataset, so I implemented a requirement of more than 20 ratings to be eligible to be recommeneded. This prevents a movie with three 5-star ratings from being recommended over a movie with an average rating of 300 over 4.5 ratings, which is typically the much safer bet.
+It is important to note that some niche movies are rated way less than popular movies in this dataset, so I implemented a requirement of more than 20 ratings to be recommended. Thus, these movies are still impactful for training the model, but this prevents an outlier movie with three 5-star ratings from being recommended over a movie with an average rating of 4.5 over 300 ratings. I decided this was the safer decision, as the model struggled to determine the latent factors of movies with only a couple of ratings, much like it is more difficult to predict movies for a user with fewer ratings. This was the first of several choices I made regarding the common popularity vs. personalization trade-off that I talk more about in [Insights](#insights).
 
 ### Std Deviation
-8.9 random norm was blowing up values.
-Talk about the formula
+When testing an earlier version of the program, I was finding that my model was consistently predicting ratings of 7 to 9 for the top movies in a dataset with a range of ratings from 0.5 to 5 stars. Here, Claude recommended that I clip the values and try a variety of different measures, none of which worked to make the ratings more reasonable. Finally, I took one last look at the code with Gemini and figured out there were two factors in this below that were causing these extreme values.
+
+```
+X = tf.Variable(tf.random.normal((len(Y),k), dtype=tf.float64), name = "movie_features")
+W = tf.Variable(tf.random.normal((len(Y[0]),k), dtype=tf.float64), name = "user_features")
+b = tf.Variable(tf.random.normal((len(Y[0]),), dtype=tf.float64), name = "user_bias")
+```
+
+Firstly, the point of random initialization of these variables is so that there is are predicted differences we can compare to the actual difference ( $y_{norm_{ij}} - (X_i \cdot W^T_j + b_j)$ ). If $(X_i \cdot W^T_j + b_j)$ was all the same to start, we wouldn't know which features need to change for each movie/user. However, $b_j$ does not need to be randomly initialized since having distinct $X_i \cdot W^T_j$ will be enough; instead, $b_j$ should start from 0 and learn the general bias of the user (whether they tend to rate most movies higher than average or lower).
+
+This itself is a small error, but it was compound by the second error, which is based on the default stddev value of ```tf.random.normal```. When stddev is not specified, this function initializes random variables based on a normal distribution with ```stddev = 1.0```. This means about 95% of all my values fall in between [-2, 2], and 99.7% fall in between [-3, 3], which was way too wide of a range. Immediately, this meant that it was quite normal for $b_j$ to get initialized to +2 or -2, which meant that the model predicted the user to rate everything 2 stars lower or higher than average, a substantial amount that was difficult to come back from.
+
+This was made worse when calculating $X_{i} \cdot W^T_j$. If $X_{ik}$ and $W_{jk}$ happened to be initialized at 2, then the product would be 4 and heavily push the prediction positive. While the dot product should still average to 0, it only takes one large unbalanced variable to skew the prediction. This, combined with a possible +2 bias would give a +6 predicted *differential*. If that movie had an average rating of 4, the predicted rating would explode up to 10. To address this explosion, I explicitly set the ```stddev = .01``` and initialized b with ```tf.zeros```. Now, the initial values will start small and gradually grow, if needed, to make better predictions, rather than having very incorrect predictions and trying to reel them back in.
 ```
 X = tf.Variable(tf.random.normal((len(Y),k), stddev = .01, dtype=tf.float64), name = "movie_features")
 W = tf.Variable(tf.random.normal((len(Y[0]),k), stddev = .01, dtype=tf.float64), name = "user_features")
 b = tf.Variable(tf.zeros((len(Y[0]),), dtype=tf.float64), name = "user_bias")
 ```
 
-### Data Leakage
-R_train (RMSE values)
-Masking
-
 ### Affinity
-Solves the arbitrary clipping
-Cosine similarity
+Even after adjusting the standard deviation, I realized that I'd often get several prediction just barely over 5.0, like 5.04. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between those 5-star-rated movies. Thus, the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings.
 
-Towards the end of testing the model, I realized that I'd oftentimes get predictions over 5 stars, which isn't possible. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between 5-star-rated movies. However, this meant that the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings. So, I decided to implement a tiebreaker that let more personalization show through in the recommendations.
+So, I decided to implement a tiebreaker that let more personalization show through in the recommendations using cosine similarity. Dot products still introduce 
+
+### Data Leakage
+After adjusting the standard deviation problem, I decided to calculate the Root Mean Squared Error (RMSE) to objectively determine whether my model was better at predicting a user's rating of a movie than just assuming each user would give the movie's average rating. At first, I was excited that my RMSE seemed much lower than the baseline (```0.287``` vs ```0.87```). However, I later realized that this number was actually too low, and it was because I had forgotten to split out a test section. The RMSE was that low simply because the model had trained on the entire dataset and memorized the ratings.
+
+```
+def manual_train_test_split(R):
+    movie_indices, user_indices = np.where(R == 1)
+    test_mask = np.zeros(len(movie_indices), dtype = bool)
+    
+    for user in np.unique(user_indices):
+        this_user = np.where(user_indices == user)[0]
+        if len(this_user) >= 5:
+            test_indices = np.random.choice(this_user, size = int(len(this_user) * .2), replace = False)
+            test_mask[test_indices] = True
+    
+    R_train = R.copy()
+    R_train[movie_indices[test_mask], user_indices[test_mask]] = 0
+    return(R_train, movie_indices[test_mask], user_indices[test_mask])
+```
+To address this, I created a stratified train/test split, where every user with 5 or more ratings would have 20% of their ratings hidden from the training set. Now, the ```baseline RMSE: 1.1713```, and my actual ```RMSE = ~ 1.3```. However, now that the previous bugs were resolved, I was able to perform a lambda grid search at ```lambda =.1, .3, .5, .7, 1, 1.5, 2, 2.5, 3, 3.5, 5, 7.5, and 10``` and obtained these values:
+| lambda | RMSE | less than baseline (1.1749) |
+| --- | --- | --- |
+| 0.1 | 1.3450 | N |
+| 0.3 | 1.2837 | N |
+| 0.5 | 1.2549 | N |
+| 0.7 | 1.2411 | N |
+| 1.0 | 1.2229 | N |
+| 1.5 | 1.1860 | N |
+| 2.0 | 1.1661 | Y |
+| 2.5 | 1.1636 | Y |
+| 3.0 | 1.1293 | Y |
+| 3.5 | 1.1179 | Y |
+| 5.0 | 1.0861 | Y |
+| 7.5 | 1.0509 | Y |
+| 10.0 | 1.0439 | Y |
+
+
+
 
 ### Quality vs. Personalization
 Cosine similarity after meeting a quality predicted rating threshold of >= 4.8.
