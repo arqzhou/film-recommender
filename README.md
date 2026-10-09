@@ -111,7 +111,12 @@ Note: While MovieLens itself comes from a recommender system, I found that I hav
 # Technical Design Process
 Disclaimer: The code for this project was produced with the help of AI. However, I strongly believe in the importance of understanding the code I am using and have gone through any AI-generated code line-by-line. As a final check for understanding, everything I write in this README will be written by me as I walk you through the code and the choices that were made.
 
-To explain the main mathematical concept of the model, it's best to see an example table. 8 different users gave ratings for 5 movies, leaving them blanked if they haven't been watched.
+The choice of certain libraries was intentional for my learning. I chose SQLite so that I could continue to practice writing SQL queries, including foregoing the use of ```df.to_sql()``` to write the CREATE TABLE queries as extra practice. I chose TensorFlow over sci-kit learn because I wanted to be much more involved with the math and understand how this model truly worked.
+
+The math is where the design process truly begins. I decided on matrix factorization and collaborative filtering since I had seen Andrew Ng use this dataset as [an example](https://learn.deeplearning.ai/specializations/machine-learning/lesson/sqzsd/making-recommendations) of a useful place for these methods, although this was only the starting place. As I came to realize, he did not go into depth about a lot of the challenges that might come up. The math and reasoning behind latent factors turned out to be fascinating to deep-dive into, and if you are curious, I do my best to explain it simply below.
+<details>
+  <summary>The Math behind Matrix Factorization</summary>
+  To explain the main mathematical concept of the model, it's best to see an example table. 8 different users gave ratings for 5 movies, leaving them blanked if they haven't been watched.
 
 | movie | user 1 | user 2 | user 3 | user 4 | user 5 | user 6 |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -158,6 +163,11 @@ Okay, now we can see how hidden factors can be useful, but how do we figure out 
 As you can imagine, the cost at the start is extremely high, but not all is lost. When calculating the cost, TensorFlow's ```tape.gradient``` automatically calculates the value of each derivative, which points every value in a user's or movie's k-vector in the direction it needs to change to lower the cost (especially if it heavily contributed to the cost function). ```apply_gradients``` brings these values slightly closer to their real preferences over time, and after 200 iterations, the error is much lower. Eventually, these values get to the point where more iterations doesn't really give us a better model (lower RMSE or good recommendations), and training should be stopped. Now, as long as you have every user's k-vector and every movie's k-vector, you can use those parameters to predict how any of those users will rate any of those movies.
 
 There are a few more details in the training stage, such as the use of normalization, R_train masking, and the bias variable, and there is also big decisions made in ```predict.py```, but these will be discussed in the next section. Most of these decisions were made in reaction to a challenge that came up.
+</details>
+
+With the math concept decided on, I began with ```create_db.py``` to load the data into ```movielens.db``` and ran some test queries to ensure that it was working. Then, I began working on ```train.py```, which was able to run quite quickly. I saved my parameters to ```trained_weights.npz``` so that ```predict.py``` could easily access them and make the predictions, and that was where progress dragged to a halt. My predictions seemed extremely random for various users, and I had to search up a ton of movies, only to realize the predictions made no sense.
+
+Now, I decided, was as good of time as any to incorporate my own ratings into the project, then I simply followed the same steps as Step 4 in [How to Use this Program Yourself](#how-to-use-this-program-yourself): wrote titles into ```movies.txt```, copy-pasted these into a spreadsheet, rated some of the movies, filtered the movies to only rated ones, copy-pasted those back into ```my_ratings.txt```, and use ```write_movies.py``` to include them into ```movielens.db```. Then, I was able to confirm my suspicions that my predicted ratings made no sense. This began the weeks-long journey of turning this program from a model that existed to one that gave real recommendations. Listed below are 5 major challenges I addressed over the weeks, but there are many more that didn't make the cut.
 
 ## Challenges and Solutions
 ### Cold Start Problem
