@@ -161,7 +161,9 @@ There are a few more details in the training stage, such as the use of normaliza
 
 ## Challenges and Solutions
 ### Cold Start Problem
-The Cold Start Problem asks the question: how can we recommend good movies to watch if the user has barely rated any movies? For example, I haven't watched that many movies in this dataset, so I only rated 17 movies, compared to user 100, who had 148 ratings.
+<details>
+  <summary>Expand</summary>
+  The Cold Start Problem asks the question: how can we recommend good movies to watch if the user has barely rated any movies? For example, I haven't watched that many movies in this dataset, so I only rated 17 movies, compared to user 100, who had 148 ratings.
 
 To help address this and acknowledge that certain movies are simply higher-rated than others, I implemented a version of mean normalization. This means for every movie-user pair where there was an actual rating, we subtract from it the average rating users gave that movie. Now, the model is trying to predict the difference from the average rating someone might rate a movie, rather than the rating of the movie itself. This is implemented here:
 ```
@@ -173,9 +175,12 @@ Y_norm = Y - mean_i[:, None] * R_train
 This means that the baseline is now based on average movie ratings, rather than every movie being the same. If a user has never rated any movies, this model will just recommend the top-average-rated movies, and every additional rating a user has made gives the model a greater chance to personalize *from this baseline*. 
 
 It is important to note that some niche movies are rated way less than popular movies in this dataset, so I implemented a requirement of more than 20 ratings to be recommended. Thus, these movies are still impactful for training the model, but this prevents an outlier movie with three 5-star ratings from being recommended over a movie with an average rating of 4.5 over 300 ratings. I decided this was the safer decision, as the model struggled to determine the latent factors of movies with only a couple of ratings, much like it is more difficult to predict movies for a user with fewer ratings. This was the first of several choices I made regarding the common popularity vs. personalization trade-off that I talk more about in [Insights](#insights).
+</details>
 
 ### Standard Deviation
-When testing an earlier version of the program, I was finding that my model was consistently predicting ratings of 7 to 9 for the top movies in a dataset with a range of ratings from 0.5 to 5 stars. Here, Claude recommended that I clip the values and try a variety of different measures, none of which worked to make the ratings more reasonable. Finally, I took one last look at the code with Gemini and figured out there were two factors in this below that were causing these extreme values.
+<details>
+  <summary>Expand</summary>
+  When testing an earlier version of the program, I was finding that my model was consistently predicting ratings of 7 to 9 for the top movies in a dataset with a range of ratings from 0.5 to 5 stars. Here, Claude recommended that I clip the values and try a variety of different measures, none of which worked to make the ratings more reasonable. Finally, I took one last look at the code with Gemini and figured out there were two factors in this below that were causing these extreme values.
 
 ```
 X = tf.Variable(tf.random.normal((len(Y),k), dtype=tf.float64), name = "movie_features")
@@ -194,8 +199,12 @@ W = tf.Variable(tf.random.normal((len(Y[0]),k), stddev = .01, dtype=tf.float64),
 b = tf.Variable(tf.zeros((len(Y[0]),), dtype=tf.float64), name = "user_bias")
 ```
 
+</details>
+
 ### Data Leakage
-After addressing these bugs with the standard deviation, I decided to calculate the Root Mean Squared Error (RMSE) to objectively determine whether my model was better at predicting a user's rating of a movie than just assuming each user would give the movie's average rating. At first, I was excited that my RMSE seemed much lower than the baseline (```0.287``` vs ```0.87```). However, I later realized that this number was actually too low, and it was because I had forgotten to split out a test section. The RMSE was that low simply because the model had trained on the entire dataset and memorized the ratings.
+<details>
+  <summary>Expand</summary>
+  After addressing these bugs with the standard deviation, I decided to calculate the Root Mean Squared Error (RMSE) to objectively determine whether my model was better at predicting a user's rating of a movie than just assuming each user would give the movie's average rating. At first, I was excited that my RMSE seemed much lower than the baseline (```0.287``` vs ```0.87```). However, I later realized that this number was actually too low, and it was because I had forgotten to split out a test section. The RMSE was that low simply because the model had trained on the entire dataset and memorized the ratings.
 
 ```
 def manual_train_test_split(R):
@@ -231,8 +240,12 @@ To address this, I created a stratified train/test split, where every user with 
 
 However, it was not so simple as just choosing the lambda that resulted in the lowest RMSE. The recommendations still didn't feel great to me, so I first looked to see if there was a way I could further fine-tune the recommendations before deciding on a lambda.
 
+</details>
+
 ### Affinity
-Even after adjusting the standard deviation, I realized that I'd often get several prediction just barely over 5.0, like 5.04. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between those 5-star-rated movies. Thus, the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings.
+<details>
+  <summary>Expand</summary>
+  Even after adjusting the standard deviation, I realized that I'd often get several prediction just barely over 5.0, like 5.04. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between those 5-star-rated movies. Thus, the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings.
 
 So, I decided to implement a tiebreaker that let more personalization show through in the recommendations using cosine similarity. Due to how my regularization term is calculated: ```reg_terms = lambda_*((tf.reduce_sum(X ** 2))) + lambda_*((tf.reduce_sum(W ** 2)))```, there is one penalty for having terms > 0, regardless of the number of ratings. However, the other half of the cost equation: ```tf.reduce_sum(((preds - Y_norm) ** 2) * R_train)``` calculates the cost for every rating. This means movies/users with lots of ratings will raise the cost more if they're inaccurate, so they are less impacted by the regularization term and can have greater vector magnitudes.
 
@@ -251,16 +264,76 @@ $$
 cosine_sim = np.dot(X_weights, user_vec) / (safe_movie_norms * user_norm)
 ```
 The more similar the angle, the more the latent factors of the movie and the user line up, the greater the value of $cos(\theta)$ up to 1. Thus, the final recommendation system became a two-part system. Use matrix factorization to predict an overall quality of movies. At ```quality_threshold = 4.8```, the predicted rating difference between movies feels too arbitrary, so they are then ranked in descending order by $cos(\theta)$, or how well the movie aligns with the user's taste.
+</details>
 
 ### Choosing Lambda
+<details>
+  <summary>Expand</summary>
+
 Adding cosine similarity didn't change the RMSE values for various lambda, since it is implemented after the predicted ratings, but it did change the feeling of the recommendations. Now that the recommendation system was complete, the lambda that performed the best seems to be ```lambda = 3.5```. The lower-value lambdas were still worse than the baseline, and the higher value lambdas didn't capture the personality of the user, recommending too many safe blockbuster picks.
-
-
-
-
+</details>
 
 ## Example Results
-4 kinds of users
+<details>
+  <summary>Sparse User 611 (n = 17), likes animations, historical/realistic fiction, heartfelt </summary>
+  
+  ```
+   Top 16 ratings for User 611:
+   (5.0, 'The Blue Planet (2001)')
+   (5.0, 'Kung Fu Panda 3 (2016)')
+   (5.0, 'Your Name. (2016)')
+   (5.0, 'Moana (2016)')
+   (5.0, 'Planet Earth II (2016)')
+   (5.0, 'Blue Planet II (2017)')
+   (4.5, 'Zootopia (2016)')
+   (4.5, 'The Man Who Knew Infinity (2016)')
+   (4.5, 'Hidden Figures (2016)')
+   (4.0, 'Ice Age: The Great Egg-Scapade (2016)')
+   (4.0, 'Sully (2016)')
+   (3.5, 'The Angry Birds Movie (2016)')
+   (3.5, 'Cars 3 (2017)')
+   (3.5, 'Incredibles 2 (2018)')
+   (3.0, 'Finding Dory (2016)')
+   (2.0, 'Storks (2016)')
+
+   Top 10 baseline recommendations for User 611:
+   (4.43 avg, 317 reviews, 'Shawshank Redemption, The (1994)')
+   (4.33 avg, 27 reviews, 'Sunset Blvd. (a.k.a. Sunset Boulevard) (1950)')
+   (4.31 avg, 29 reviews, 'Philadelphia Story, The (1940)')
+   (4.30 avg, 25 reviews, 'In the Name of the Father (1993)')
+   (4.30 avg, 45 reviews, 'Lawrence of Arabia (1962)')
+   (4.29 avg, 29 reviews, 'Hoop Dreams (1994)')
+   (4.29 avg, 192 reviews, 'Godfather, The (1972)')
+   (4.29 avg, 26 reviews, 'Harold and Maude (1971)')
+   (4.28 avg, 25 reviews, 'Logan (2017)')
+   (4.27 avg, 218 reviews, 'Fight Club (1999)')
+
+   Top 10 personalized recommendations for User 611:
+   (Affinity: +0.625, Pred: 4.53, 'Princess Mononoke (Mononoke-hime) (1997)')
+   (Affinity: +0.459, Pred: 4.74, 'Schindler's List (1993)')
+   (Affinity: +0.415, Pred: 4.54, 'Glory (1989)')
+   (Affinity: +0.414, Pred: 4.54, 'Shine (1996)')
+   (Affinity: +0.405, Pred: 4.64, 'Like Water for Chocolate (Como agua para chocolate) (1992)')
+   (Affinity: +0.404, Pred: 4.91, 'Sunset Blvd. (a.k.a. Sunset Boulevard) (1950)')
+   (Affinity: +0.403, Pred: 4.59, 'Guardians of the Galaxy (2014)')
+   (Affinity: +0.400, Pred: 4.65, 'Princess Bride, The (1987)')
+   (Affinity: +0.384, Pred: 4.65, 'Dark Knight, The (2008)')
+   (Affinity: +0.373, Pred: 4.53, 'Inglourious Basterds (2009)')
+
+```
+</details>
+
+<details>
+  <summary>Power User </summary>
+</details>
+
+<details>
+  <summary></summary>
+</details>
+
+<details>
+  <summary></summary>
+</details>
 
 ## Insights
 recs etc.
