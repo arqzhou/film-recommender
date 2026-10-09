@@ -192,7 +192,7 @@ b = tf.Variable(tf.zeros((len(Y[0]),), dtype=tf.float64), name = "user_bias")
 ### Affinity
 Even after adjusting the standard deviation, I realized that I'd often get several prediction just barely over 5.0, like 5.04. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between those 5-star-rated movies. Thus, the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings.
 
-So, I decided to implement a tiebreaker that let more personalization show through in the recommendations using cosine similarity. Dot products still introduce 
+So, I decided to implement a tiebreaker that let more personalization show through in the recommendations using cosine similarity. Dot products still introduce a level of bias towards movies with more ratings because of my regularization term.
 
 ### Data Leakage
 After adjusting the standard deviation problem, I decided to calculate the Root Mean Squared Error (RMSE) to objectively determine whether my model was better at predicting a user's rating of a movie than just assuming each user would give the movie's average rating. At first, I was excited that my RMSE seemed much lower than the baseline (```0.287``` vs ```0.87```). However, I later realized that this number was actually too low, and it was because I had forgotten to split out a test section. The RMSE was that low simply because the model had trained on the entire dataset and memorized the ratings.
