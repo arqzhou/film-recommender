@@ -7,6 +7,11 @@ This project uses a recommender system trained on the [MovieLens 100k Dataset](h
 - [How to Use this Program Yourself](#how-to-use-this-program-yourself)
 - [Technical Design Process](#technical-design-process)
   - [Challenges and Solutions](#challenges-and-solutions)
+      - [Cold Start Problem](#cold-start-problem)
+      - [Standard Deviation](#standard-deviation)
+      - [Data Leakage](#data-leakage)
+      - [Affinity](#affinity)
+      - [Choosing Lambda](#choosing-lambda)
   - [Example Results](#example-results)
   - [Insights](#insights)
   - [Limitations](#limitations)
@@ -189,27 +194,8 @@ W = tf.Variable(tf.random.normal((len(Y[0]),k), stddev = .01, dtype=tf.float64),
 b = tf.Variable(tf.zeros((len(Y[0]),), dtype=tf.float64), name = "user_bias")
 ```
 
-### Affinity
-Even after adjusting the standard deviation, I realized that I'd often get several prediction just barely over 5.0, like 5.04. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between those 5-star-rated movies. Thus, the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings.
-
-So, I decided to implement a tiebreaker that let more personalization show through in the recommendations using cosine similarity. Due to how my regularization term is calculated: ```reg_terms = lambda_*((tf.reduce_sum(X ** 2))) + lambda_*((tf.reduce_sum(W ** 2)))```, there is one penalty for having terms > 0, regardless of the number of ratings. However, the other half of the cost equation: ```tf.reduce_sum(((preds - Y_norm) ** 2) * R_train)``` calculates the cost for every rating. This means movies/users with lots of ratings will raise the cost more if they're inaccurate, so they are less impacted by the regularization term and can have greater vector magnitudes.
-
-For example:
-If a movie is rated 5 times, its cost would equal to the sum of those 5 differences + the square of its k_vector.
-If a movie is rated 100 times, its cost would equal to the sum of those 100 differences + the square of its k_vector.
-
-The square of the first scenario's k_vector factors much more in the cost equation than the second scenario, so that movie's k_vector is forced to have smaller terms, even if they would have had the same latent factors otherwise. While this is not a major flaw since it ensures some amount of "wisdom of the crowd" in the predicted ratings, it is not ideal for making the final decisions on recommendation ranking.
-
-Luckily, there is a value that can be easily obtained from those values that ignores the number of ratings, and that is the cosine similarity angle, calculated by:
-
-$$
-cos(\theta) = \frac{m_i \cdot u_j}{\left\| m_i \right\|\times\left\| u_j \right\|}
-$$
-
-The more similar the angle, the more the latent factors of the movie and the user line up, the greater the value of $cos(\theta)$ up to 1. This is the value that decides the actual ranking after eliminating movies below the ```quality_threshold = 4.8```.
-
 ### Data Leakage
-After adjusting the standard deviation problem, I decided to calculate the Root Mean Squared Error (RMSE) to objectively determine whether my model was better at predicting a user's rating of a movie than just assuming each user would give the movie's average rating. At first, I was excited that my RMSE seemed much lower than the baseline (```0.287``` vs ```0.87```). However, I later realized that this number was actually too low, and it was because I had forgotten to split out a test section. The RMSE was that low simply because the model had trained on the entire dataset and memorized the ratings.
+After addressing these bugs with the standard deviation, I decided to calculate the Root Mean Squared Error (RMSE) to objectively determine whether my model was better at predicting a user's rating of a movie than just assuming each user would give the movie's average rating. At first, I was excited that my RMSE seemed much lower than the baseline (```0.287``` vs ```0.87```). However, I later realized that this number was actually too low, and it was because I had forgotten to split out a test section. The RMSE was that low simply because the model had trained on the entire dataset and memorized the ratings.
 
 ```
 def manual_train_test_split(R):
@@ -226,7 +212,7 @@ def manual_train_test_split(R):
     R_train[movie_indices[test_mask], user_indices[test_mask]] = 0
     return(R_train, movie_indices[test_mask], user_indices[test_mask])
 ```
-To address this, I created a stratified train/test split, where every user with 5 or more ratings would have 20% of their ratings hidden from the training set. Now, the ```baseline RMSE: 1.1713```, and my actual ```RMSE = ~ 1.3```. However, now that the previous bugs were resolved, I was able to perform a lambda grid search at ```lambda =.1, .3, .5, .7, 1, 1.5, 2, 2.5, 3, 3.5, 5, 7.5, and 10``` and obtained these values:
+To address this, I created a stratified train/test split, where every user with 5 or more ratings would have 20% of their ratings hidden from the training set. Now, the ```baseline RMSE: 1.1713```, and my actual ```RMSE = ~ 1.3```. However, now that the previous bugs were resolved, I was able to perform a lambda grid search at ```lambda = .1, .3, .5, .7, 1, 1.5, 2, 2.5, 3, 3.5, 5, 7.5, and 10``` and obtained these values:
 | lambda | RMSE | less than baseline (1.1749) |
 | --- | --- | --- |
 | 0.1 | 1.3450 | N |
@@ -243,11 +229,34 @@ To address this, I created a stratified train/test split, where every user with 
 | 7.5 | 1.0509 | Y |
 | 10.0 | 1.0439 | Y |
 
+However, it was not so simple as just choosing the lambda that resulted in the lowest RMSE. The recommendations still didn't feel great to me, so I first looked to see if there was a way I could further fine-tune the recommendations before deciding on a lambda.
+
+### Affinity
+Even after adjusting the standard deviation, I realized that I'd often get several prediction just barely over 5.0, like 5.04. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between those 5-star-rated movies. Thus, the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings.
+
+So, I decided to implement a tiebreaker that let more personalization show through in the recommendations using cosine similarity. Due to how my regularization term is calculated: ```reg_terms = lambda_*((tf.reduce_sum(X ** 2))) + lambda_*((tf.reduce_sum(W ** 2)))```, there is one penalty for having terms > 0, regardless of the number of ratings. However, the other half of the cost equation: ```tf.reduce_sum(((preds - Y_norm) ** 2) * R_train)``` calculates the cost for every rating. This means movies/users with lots of ratings will raise the cost more if they're inaccurate, so they are less impacted by the regularization term and can have greater vector magnitudes.
+
+For example:
+If a movie is rated 5 times, its cost would equal to the sum of those 5 differences + the square of its k_vector.
+If a movie is rated 100 times, its cost would equal to the sum of those 100 differences + the square of its k_vector.
+
+The square of the first scenario's k_vector factors much more in the cost equation than the second scenario, so that movie's k_vector is forced to have smaller terms, even if they would have had the same latent factors otherwise. While this is not a major flaw since it ensures some amount of "wisdom of the crowd" in the predicted ratings, it is not ideal for making the final decisions on recommendation ranking.
+
+Luckily, there is a value that can be easily obtained from those values that ignores the number of ratings, and that is the cosine similarity angle, calculated by:
+
+$$
+cos(\theta) = \frac{m_i \cdot u_j}{\left\| m_i \right\|\times\left\| u_j \right\|}
+$$
+```
+cosine_sim = np.dot(X_weights, user_vec) / (safe_movie_norms * user_norm)
+```
+The more similar the angle, the more the latent factors of the movie and the user line up, the greater the value of $cos(\theta)$ up to 1. Thus, the final recommendation system became a two-part system. Use matrix factorization to predict an overall quality of movies. At ```quality_threshold = 4.8```, the predicted rating difference between movies feels too arbitrary, so they are then ranked in descending order by $cos(\theta)$, or how well the movie aligns with the user's taste.
+
+### Choosing Lambda
+Adding cosine similarity didn't change the RMSE values for various lambda, since it is implemented after the predicted ratings, but it did change the feeling of the recommendations. Now that the recommendation system was complete, the lambda that performed the best seems to be ```lambda = 3.5```. The lower-value lambdas were still worse than the baseline, and the higher value lambdas didn't capture the personality of the user, recommending too many safe blockbuster picks.
 
 
 
-### Quality vs. Personalization
-Cosine similarity after meeting a quality predicted rating threshold of >= 4.8.
 
 
 ## Example Results
