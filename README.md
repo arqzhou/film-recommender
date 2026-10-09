@@ -169,7 +169,7 @@ This means that the baseline is now based on average movie ratings, rather than 
 
 It is important to note that some niche movies are rated way less than popular movies in this dataset, so I implemented a requirement of more than 20 ratings to be recommended. Thus, these movies are still impactful for training the model, but this prevents an outlier movie with three 5-star ratings from being recommended over a movie with an average rating of 4.5 over 300 ratings. I decided this was the safer decision, as the model struggled to determine the latent factors of movies with only a couple of ratings, much like it is more difficult to predict movies for a user with fewer ratings. This was the first of several choices I made regarding the common popularity vs. personalization trade-off that I talk more about in [Insights](#insights).
 
-### Std Deviation
+### Standard Deviation
 When testing an earlier version of the program, I was finding that my model was consistently predicting ratings of 7 to 9 for the top movies in a dataset with a range of ratings from 0.5 to 5 stars. Here, Claude recommended that I clip the values and try a variety of different measures, none of which worked to make the ratings more reasonable. Finally, I took one last look at the code with Gemini and figured out there were two factors in this below that were causing these extreme values.
 
 ```
@@ -192,7 +192,21 @@ b = tf.Variable(tf.zeros((len(Y[0]),), dtype=tf.float64), name = "user_bias")
 ### Affinity
 Even after adjusting the standard deviation, I realized that I'd often get several prediction just barely over 5.0, like 5.04. This could be simply addressed with ```preds = np.clip(raw_preds, 0.5, 5)```, but this meant there was no way to distinguish between those 5-star-rated movies. Thus, the order of recommendations became extremely arbitrary, a 5.0+ predicted movie could be pushed out of the top 10 by other 5.0-rated films with no significant tiebreaker. Additionally, it also seemed like the difference between a 4.99 predicted film and a 5.0 predicted film was also quite arbitrary, especially for users with fewer ratings.
 
-So, I decided to implement a tiebreaker that let more personalization show through in the recommendations using cosine similarity. Dot products still introduce a level of bias towards movies with more ratings because of my regularization term.
+So, I decided to implement a tiebreaker that let more personalization show through in the recommendations using cosine similarity. Due to how my regularization term is calculated: ```reg_terms = lambda_*((tf.reduce_sum(X ** 2))) + lambda_*((tf.reduce_sum(W ** 2)))```, there is one penalty for having terms > 0, regardless of the number of ratings. However, the other half of the cost equation: ```tf.reduce_sum(((preds - Y_norm) ** 2) * R_train)``` calculates the cost for every rating. This means movies/users with lots of ratings will raise the cost more if they're inaccurate, so they are less impacted by the regularization term and can have greater vector magnitudes.
+
+For example:
+If a movie is rated 5 times, its cost would equal to the sum of those 5 differences + the square of its k_vector.
+If a movie is rated 100 times, its cost would equal to the sum of those 100 differences + the square of its k_vector.
+
+The square of the first scenario's k_vector factors much more in the cost equation than the second scenario, so that movie's k_vector is forced to have smaller terms, even if they would have had the same latent factors otherwise. While this is not a major flaw since it ensures some amount of "wisdom of the crowd" in the predicted ratings, it is not ideal for making the final decisions on recommendation ranking.
+
+Luckily, there is a value that can be easily obtained from those values that ignores the number of ratings, and that is the cosine similarity angle, calculated by:
+
+$$
+cos(\theta) = \frac{m_i \cdot u_j}{\left\| m_i \right\|\times\left\| u_j \right\|}
+$$
+
+The more similar the angle, the more the latent factors of the movie and the user line up, the greater the value of $cos(\theta)$ up to 1. This is the value that decides the actual ranking after eliminating movies below the ```quality_threshold = 4.8```.
 
 ### Data Leakage
 After adjusting the standard deviation problem, I decided to calculate the Root Mean Squared Error (RMSE) to objectively determine whether my model was better at predicting a user's rating of a movie than just assuming each user would give the movie's average rating. At first, I was excited that my RMSE seemed much lower than the baseline (```0.287``` vs ```0.87```). However, I later realized that this number was actually too low, and it was because I had forgotten to split out a test section. The RMSE was that low simply because the model had trained on the entire dataset and memorized the ratings.
