@@ -1,6 +1,6 @@
 # Overview
 
-  This project uses a recommender system trained on the [MovieLens 100k Dataset](https://www.kaggle.com/datasets/grouplens/movielens-latest-small/data) to make movie suggestions for a user based on their ratings. It accomplishes this by using SQLite, NumPy, and TensorFlow to query the dataset and implement the collaborative filtering mechanism with matrix factorization. The final model was able to achieve a RMSE value of 1.1097 compared to the baseline RMSE of 1.1713 and offer notably more personalized recommendations (see [Insights](#insights)) through a combination of a quality threshold and affinity score rankings.
+  This project uses a hybrid recommender system trained on the [MovieLens 100k Dataset](https://www.kaggle.com/datasets/grouplens/movielens-latest-small/data) to make movie suggestions for a user based on their ratings. It accomplishes this by using SQLite, NumPy, and TensorFlow to query the dataset and implement the collaborative filtering mechanism with matrix factorization. The final model was able to achieve a RMSE value of 1.0804 compared to the baseline RMSE of 1.1713 and offer notably more personalized recommendations (see [Insights](#insights)) through a combination of collaborative filtering, content-based filtering, and a final affinity score.
 
 ## Jump to:
 - [Background](#background)
@@ -116,7 +116,7 @@ Disclaimer: The code for this project was produced with the help of AI. However,
 
   The choice of certain libraries was intentional for my learning. I chose SQLite so that I could continue to practice writing SQL queries, including foregoing the use of ```df.to_sql()``` to write the CREATE TABLE queries as extra practice. I chose TensorFlow over sci-kit learn because I wanted to be much more involved with the math and understand how this model truly worked.
 
-  The math is where the design process truly begins. I decided on matrix factorization and collaborative filtering since I had seen Andrew Ng use this dataset as [an example](https://learn.deeplearning.ai/specializations/machine-learning/lesson/sqzsd/making-recommendations) of a useful place for these methods, although this was only the starting place. As I came to realize, he did not go into depth about a lot of the challenges that might come up. The math and reasoning behind latent factors turned out to be fascinating to deep-dive into, and if you are curious, I do my best to explain it simply below.
+  The math is where the design process truly begins. I decided to start with matrix factorization and collaborative filtering since I had seen Andrew Ng use this dataset as [an example](https://learn.deeplearning.ai/specializations/machine-learning/lesson/sqzsd/making-recommendations) of a useful place for these methods, although this was only the starting place. As I came to realize, he did not go into depth about a lot of the challenges that might come up. The math and reasoning behind latent factors turned out to be fascinating to deep-dive into, and if you are curious, I do my best to explain it simply below.
 <details>
   <summary>The Math behind Matrix Factorization</summary>
   
@@ -171,7 +171,7 @@ $(m\text{ movies} \times k\text{ hidden factors}) \times (k\text{ hidden factors
 
   With the math concept decided on, I began with ```create_db.py``` to load the data into ```movielens.db``` and ran some test queries to ensure that it was working. Then, I began working on ```train.py```, which was able to run quite quickly. I saved my parameters to ```trained_weights.npz``` so that ```predict.py``` could easily access them and make the predictions, and that was where progress dragged to a halt. My predictions seemed extremely random for various users, and I had to search up a ton of movies, only to realize the predictions made no sense.
 
-  Now, I decided, was as good of time as any to incorporate my own ratings into the project, then I simply followed the same steps as Step 4 in [How to Use this Program Yourself](#how-to-use-this-program-yourself): wrote titles into ```movies.txt```, copy-pasted these into a spreadsheet, rated some of the movies, filtered the movies to only rated ones, copy-pasted those back into ```my_ratings.txt```, and use ```write_movies.py``` to include them into ```movielens.db```. Then, I was able to confirm my suspicions that my predicted ratings made no sense. This began the weeks-long journey of turning this program from a model that existed to one that gave real recommendations. Listed below are 5 major challenges I addressed over the weeks, but there are many more that didn't make the cut.
+  Now, I decided, was as good of time as any to incorporate my own ratings into the project, then I simply followed the same steps as Step 4 in [How to Use this Program Yourself](#how-to-use-this-program-yourself): wrote titles into ```movies.txt```, copy-pasted these into a spreadsheet, rated some of the movies, filtered the movies to only rated ones, copy-pasted those back into ```my_ratings.txt```, and use ```write_movies.py``` to include them into ```movielens.db```. Then, I was able to confirm my suspicions that my predicted ratings made no sense. This began the weeks-long journey of turning this program from a model that existed to one that gave real recommendations. Listed below are 6 major challenges I addressed over the weeks, but there are many more that didn't make the cut.
 
 ## Challenges and Solutions
 ### Cold Start Problem
@@ -291,6 +291,53 @@ cosine_sim = np.dot(X_weights, user_vec) / (safe_movie_norms * user_norm)
   <summary>Which lambda is actually the best for my model?</summary>
 
   Adding cosine similarity didn't change the RMSE values for various lambda, since it is implemented after the predicted ratings, but it did change the feeling of the recommendations. Now that the recommendation system was complete, the lambda that performed the best seems to be ```lambda = 3.5```. The lower-value lambdas were still worse than the baseline, and the higher value lambdas didn't capture the personality of the user, recommending too many safe blockbuster picks.
+</details>
+
+### Adding Content-Based Filtering
+<details>
+  <summary>Why do my ratings still only make some sense?</summary>
+  Even after addressing the previous five challenges, my model still simply wasn't passing the eyeball test. Even when recommendations seemed great for one user, it wouldn't make sense for other users. Both Claude and Gemini confirmed my suspicions with their evaluations of the movies. I would get no animation recommendations for myself, and tons of crime/thrillers for romance-lovers. Finally, after hundreds of testing runs that led frustratingly nowhere, I grudging decided to add **content-based filtering**, which leverages the genres tags almost every movie had in the dataset.
+
+| movieId | title | genres|
+| --- | --- | --- |
+| 1 | Toy Story (1995) | Adventure|Animation|Children|Comedy|Fantasy |
+| 318 | Shawshank Redemption, The (1995) | Crime|Drama |
+
+  The primary reason I'd hesitated to use this data was because I was dreaming of my model being able pick up the latent factors (like genre) without being contaminated by human influence (the genre tags). However, the data was simply too noisy and sparse for that to work.
+
+  When, I ultimately decided to add content-based filtering, the structure of the program allowed it to be added in just one evening. I was able to make use of ```mg_df = df["genres"].str.get_dummies(sep='|')``` to create a multi-hot encoding matrix of size num_movies X num_genres. Each movie would contain a 1 in columns where genres matched and 0s elsewhere.
+  
+  #### mg:
+  | # | Adventure | Animation | Children | Comedy | Crime | Drama | Fantasy | ... |
+  | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+  | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 1 | ... |
+  | 318 | 0 | 0 | 0 | 0 | 1 | 1 | 0 | ... |
+  
+  Next, I created a latent feature matrix for genres (num_genres X k latent features) just like I did for movies and users, where each genre would also be trained based on how that genre typically aligns to hidden factors. For this example, let's say the hidden factors are "whimsy", "visually appealing", and "exciting".
+
+  #### G:
+  | Genre | Whimsey | Visually Appealing | Exciting |
+  | --- | --- | --- | --- |
+  | Adventure | 0.3 | 0.5 | 0.6 |
+  | Animation | 0.5 | 0.7 | 0.2 |
+  | Children | 0.8 | 0.3 | 0.5 |
+  | Comedy | 0.6 | -0.2 | 0.2 |
+  | Crime | -0.4 | 0.1 | 0.6 |
+  | Drama | -0.2 | 0.3 | 0.7 |
+  | Fantasy | 0.8 | 0.7 | 0.4 |
+  | ... | ... | ... | ... |
+  
+  Now, when predictions are made, we can add the genre vector of every genre a movie is tagged with to its movie vector, which represents the combination of characteristics the movie individually has and the characteristics of the genre its associated with.
+
+```
+G = tf.Variable(tf.random.normal((len(mg[0]), k), stddev = .01, dtype=tf.float64), name = "genre_features")
+```
+
+  
+
+  
+
+  
 </details>
 
 ## Example Results
