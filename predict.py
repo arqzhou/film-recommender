@@ -59,6 +59,7 @@ def find_user_top_movies(userId, n):
 
     print("Top Genres:")
     for genre, count in list(sorted_genre_count.items())[:5]:
+        
         print(f"{genre}: {count/len(rows):.2%}")
 
 
@@ -146,10 +147,11 @@ def personal_preds(preds, userId, unique_mIds, X_comb, W_weights, sorted_genre_c
 
     for i in range(len(candidate_affs)):
         num_matches = 0
-        for genre in candidate_genres[i].split('|'):
-            if genre in sorted_genre_count:
-                candidate_affs[i] += (sorted_genre_count[genre] / (4 ** num_matches))
-                num_matches += 1
+        unsorted_genres = candidate_genres[i].split('|')
+        sorted_genres = [key for key in sorted_genre_count if key in unsorted_genres]
+        for genre in sorted_genres:
+            candidate_affs[i] += (sorted_genre_count[genre] / (5 ** (num_matches + 1)))
+            num_matches += 1
             
         
 

@@ -13,7 +13,6 @@ def make_matrices():
     ORDER BY movieId
     ;
     """
-    # row_cursor.execute(movie_query)
     cur.execute(movie_query)
     all_movieIds = cur.fetchall()
 
