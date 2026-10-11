@@ -12,6 +12,7 @@
       - [Data Leakage](#data-leakage)
       - [Affinity](#affinity)
       - [Choosing Lambda](#choosing-lambda)
+      - [Adding Content-Based Filtering](#adding-content-based-filtering)
   - [Example Results](#example-results)
   - [Insights](#insights)
   - [Limitations](#limitations)
@@ -290,7 +291,7 @@ cosine_sim = np.dot(X_weights, user_vec) / (safe_movie_norms * user_norm)
 <details>
   <summary>Which lambda is actually the best for my model?</summary>
 
-  Adding cosine similarity didn't change the RMSE values for various lambda, since it is implemented after the predicted ratings, but it did change the feeling of the recommendations. Now that the recommendation system was complete, the lambda that performed the best seems to be ```lambda = 3.5```. The lower-value lambdas were still worse than the baseline, and the higher value lambdas didn't capture the personality of the user, recommending too many safe blockbuster picks.
+  Adding cosine similarity didn't change the RMSE values for various lambda, since it is implemented after the predicted ratings, but it did change the feeling of the recommendations. Now that the recommendation system was complete, the lambda that performed the best seems to be ```lambda = 3.5```. The lower-value lambdas were still worse than the baseline, and the higher value lambdas didn't capture the personality of the user, recommending too many safe blockbuster picks. Later on, after editing the model further (see [Adding Content-Based Filtering](#adding-content-based-filtering) and [Adjusting Affinity Score](#adjusting-affinity-score-and-bimodality)), I settled on ```lambda = 1.0```. The reasoning was still the same, lower RMSE than the baseline and best-feeling results.
 </details>
 
 ### Adding Content-Based Filtering
@@ -313,31 +314,130 @@ cosine_sim = np.dot(X_weights, user_vec) / (safe_movie_norms * user_norm)
   | 1 | 1 | 1 | 1 | 1 | 0 | 0 | 1 | ... |
   | 318 | 0 | 0 | 0 | 0 | 1 | 1 | 0 | ... |
   
-  Next, I created a latent feature matrix for genres (num_genres X k latent features) just like I did for movies and users, where each genre would also be trained based on how that genre typically aligns to hidden factors. For this example, let's say the hidden factors are "whimsy", "visually appealing", and "exciting".
-
-  #### G:
-  | Genre | Whimsey | Visually Appealing | Exciting |
-  | --- | --- | --- | --- |
-  | Adventure | 0.3 | 0.5 | 0.6 |
-  | Animation | 0.5 | 0.7 | 0.2 |
-  | Children | 0.8 | 0.3 | 0.5 |
-  | Comedy | 0.6 | -0.2 | 0.2 |
-  | Crime | -0.4 | 0.1 | 0.6 |
-  | Drama | -0.2 | 0.3 | 0.7 |
-  | Fantasy | 0.8 | 0.7 | 0.4 |
-  | ... | ... | ... | ... |
-  
-  Now, when predictions are made, we can add the genre vector of every genre a movie is tagged with to its movie vector, which represents the combination of characteristics the movie individually has and the characteristics of the genre its associated with.
+  Next, I created a latent feature matrix for genres (num_genres X k latent features) just like I did for movies and users, where each genre would also be trained based on how that genre typically aligns to hidden factors. For this example, let's say the hidden factors are "whimsy", "visually appealing", and "exciting". This matrix is initialized in the same as the weights for users and movies:
 
 ```
 G = tf.Variable(tf.random.normal((len(mg[0]), k), stddev = .01, dtype=tf.float64), name = "genre_features")
 ```
 
-  
+After training, ```G``` might look something like this.
 
+  #### G:
+  | Genre | Whimsey | Visually Appealing | Exciting |
+  | --- | --- | --- | --- |
+  | Adventure | 0.15 | 0.25 | 0.3 |
+  | Animation | 0.25 | 0.35 | 0.1 |
+  | Children | 0.4 | 0.15 | 0.25 |
+  | Comedy | 0.3 | -0.1 | 0.1 |
+  | Crime | -0.2 | 0.05 | 0.3 |
+  | Drama | -0.1 | 0.15 | 0.35 |
+  | Fantasy | 0.4 | 0.35 | 0.2 |
+  | ... | ... | ... | ... |
   
+  Now, when predictions are made, we can add the genre vector of *every genre a movie is tagged with* to its movie vector, which represents the combination of characteristics the movie individually has and the characteristics of the genre its associated with.
 
+```
+genre_vectors = tf.linalg.matmul(mg, G)
+X_comb = X + genre_vectors
+```
+
+| vector | Whimsey | Visually Appealing | Exciting |
+| --- | --- | --- | --- |
+| **Toy Story item vector** | 2.6 | 2.1 | 1.6 |
+ | Adventure | 0.15 | 0.25 | 0.3 |
+  | Animation | 0.25 | 0.35 | 0.1 |
+  | Children | 0.4 | 0.15 | 0.25 |
+  | Comedy | 0.3 | -0.1 | 0.1 |
+  | *Crime (Not Tagged)* | 0 | 0 | 0 |
+  | *Drama (Not Tagged)* | 0 | 0 | 0 |
+  | Fantasy | 0.4 | 0.35 | 0.2 |
+  | **Toy Story genre_vectors** | 1.5 | 1.0 | 0.95 |
+  | **X_comb vector (total)** | 4.1 | 3.1 | 2.55 |
+
+Recall that ```mg``` was a multi-hot matrix (num_movies X num_genres) that had 1s in each genre column that a movie was tagged with and 0s if not tagged. When multiplying with G (num_genres X k latent factors), each G_vector that the movie is tagged with is multiplied by 1 and kept, and every G_vector that the movie isn't tagged with is multiplied by 0 and dropped. Now, we get a new matrix ```genre_vectors``` (num_movies X k latent factors), where each column represents the sum of that latent factor's alignment from all the G_vectors of genres the movie was tagged in. Here, we can see that ```X_comb```, represents both characteristics of the movies and the genres the movie is apart of.
+
+From there, predictions are made the same as before, except ```X_weights``` (which was just the movie_vectors) is replaced by ```X_comb```. Also note that ```G``` also has to have a regularization term to prevent memorization (all X and W go to 0, and G memorizes the k hidden factors for every movie). The affinity scores were also updated in the same way.
+
+```
+  preds = tf.linalg.matmul(X_comb, W, transpose_b = True) + b
+  squared_error = tf.reduce_sum(((preds - Y_norm) ** 2) * R_train)
+  reg_terms = lambda_*((tf.reduce_sum(X ** 2))) + lambda_*((tf.reduce_sum(W ** 2))) + lambda_*((tf.reduce_sum(G ** 2)))
+```
+</details>
+
+### Adjusting Affinity Score and Bimodality
+<details>
+  <summary>So, the ratings still aren't great?</summary>
+  After implementing content-based filtering, I thought the model was finalized. Yet, I would still get results like this:
+  <details>
+    <summary>Initial User 100 Results</summary>
+    
+    ```
+    Affinity: +0.234, Pred: 4.89, 'Kick-Ass (2010), Genres: 'Action|Comedy')
+    Affinity: +0.228, Pred: 4.56, 'Eraser (1996), Genres: 'Action|Drama|Thriller')
+    Affinity: +0.219, Pred: 4.92, 'Enemy of the State (1998), Genres: 'Action|Thriller')
+    Affinity: +0.211, Pred: 4.64, 'Net, The (1995), Genres: 'Action|Crime|Thriller')
+    Affinity: +0.211, Pred: 4.64, 'Star Trek: Insurrection (1998), Genres: 'Action|Drama|Romance|Sci-Fi')
+    Affinity: +0.194, Pred: 4.74, 'Island, The (2005), Genres: 'Action|Sci-Fi|Thriller')
+    Affinity: +0.190, Pred: 4.70, 'House of Flying Daggers (Shi mian mai fu) (2004), Genres: 'Action|Drama|Romance')
+    Affinity: +0.186, Pred: 4.58, 'Three Musketeers, The (1993), Genres: 'Action|Adventure|Comedy|Romance')
+    Affinity: +0.175, Pred: 4.92, 'Kung Fu Panda (2008), Genres: 'Action|Animation|Children|Comedy|IMAX')
+    Affinity: +0.171, Pred: 4.61, 'Mr. & Mrs. Smith (2005), Genres: 'Action|Adventure|Comedy|Romance') 
+    ```
+  </details>
+  For a user whose top 30 movies have a genre distribution of:
   
+  ```
+  Top Genres:
+  Romance: 56.67%
+  Comedy: 53.33%
+  Drama: 50.00%
+  Action: 13.33%
+  Adventure: 10.00%
+  ```
+
+  I was getting too many action movies and too few romance movies. The problem lay in the fact that the user had two distinct preferences 90s action and 90s rom-coms. The singular ```user_vector``` that represents the user struggled to encapsulate both of these preferences, and it landed somewhere in the middle, apparently leaning towards the Action side while still recommending some Action|Romance pairs.
+
+  While this can work for recommendations, I thought that top genres should be respected more heavily by the system and adjusted the affinity score to reflect that. At this point, the definition of the affinity score is quite subjective. The final version I settled on weights, the proportion of top genres quite heavily:
+
+```
+if user_norm > 0:
+        movie_norms = np.linalg.norm(X_comb, axis=1)
+        # Avoid division by zero for unrated/zero-norm movies
+        safe_movie_norms = np.where(movie_norms == 0, 1.0, movie_norms)
+
+        # Cosine similarity measures directional alignment in [-1.0, 1.0]
+        cosine_sim = np.dot(X_comb, user_vec) / (safe_movie_norms * user_norm)
+    
+    unrated_scores = cosine_sim[indexed_unrated_ids]
+# several lines later
+for i in range(len(candidate_affs)):
+        num_matches = 0
+        unsorted_genres = candidate_genres[i].split('|')
+        sorted_genres = [key for key in sorted_genre_count if key in unsorted_genres]
+        for genre in sorted_genres:
+            candidate_affs[i] += (sorted_genre_count[genre] / (5 ** (num_matches + 1))
+            num_matches += 1
+```
+  Of the movies that cross the quality threshold, we calculate their cosine similarity. Next, we sort the genres that the movie is tagged with in decreasing order of frequency in the user's top 30 (or top n ratings if < 30). For every tagged genre, we add that genre's frequency divided by $5^{movie_genre_rank}$. That is, the tagged genre that is most prevalent in the user's top 30 is divided by 5, the next most prevalent 25, then 125, and so on. This heavily weights movies that have at least one or two of the user's very top genre preferences, and it also decreases quickly enough to where it is not only looking at which movie has the most genre matches. A high cosine similarity score will have a greater impact on the score than the third genre onwards, so it is important for movies to have both. With the affinity score finished, the model was well and truly finalized.
+  
+  <details>
+    <summary>Final User 100 Results</summary>
+    
+    ```
+     Affinity: +4.263, Pred: 4.58, 'Three Musketeers, The (1993), Genres: 'Action|Adventure|Comedy|Romance')
+     Affinity: +4.255, Pred: 4.80, 'Adaptation (2002), Genres: 'Comedy|Drama|Romance')
+     Affinity: +4.248, Pred: 4.61, 'Mr. & Mrs. Smith (2005), Genres: 'Action|Adventure|Comedy|Romance')
+     Affinity: +4.243, Pred: 4.64, 'Star Trek: Insurrection (1998), Genres: 'Action|Drama|Romance|Sci-Fi')
+     Affinity: +4.242, Pred: 4.53, 'Juno (2007), Genres: 'Comedy|Drama|Romance')
+     Affinity: +4.230, Pred: 5.00, 'Philadelphia Story, The (1940), Genres: 'Comedy|Drama|Romance')
+     Affinity: +4.222, Pred: 4.70, 'House of Flying Daggers (Shi mian mai fu) (2004), Genres:   'Action|Drama|Romance')
+     Affinity: +4.213, Pred: 4.51, 'Crazy, Stupid, Love. (2011), Genres: 'Comedy|Drama|Romance')
+     Affinity: +4.200, Pred: 4.52, 'Manhattan (1979), Genres: 'Comedy|Drama|Romance')
+     Affinity: +4.200, Pred: 4.76, 'Easy A (2010), Genres: 'Comedy|Romance') 
+    ```
+  </details>
+
 </details>
 
 ## Example Results
