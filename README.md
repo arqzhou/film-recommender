@@ -1,6 +1,6 @@
 # Overview
 
-  This project uses a hybrid recommender system trained on the [MovieLens 100k Dataset](https://www.kaggle.com/datasets/grouplens/movielens-latest-small/data) to make movie suggestions for a user based on their ratings. It accomplishes this by using SQLite, NumPy, and TensorFlow to query the dataset and implement the collaborative filtering mechanism with matrix factorization. The final model was able to achieve a RMSE value of 1.0804 compared to the baseline RMSE of 1.1713 and offer notably more personalized recommendations (see [Insights](#insights)) through a combination of collaborative filtering, content-based filtering, and a final affinity score.
+  This project uses a hybrid recommender system trained on the [MovieLens 100k Dataset](https://www.kaggle.com/datasets/grouplens/movielens-latest-small/data) to make movie suggestions for a user based on their ratings. It accomplishes this by using SQLite, NumPy, and TensorFlow to query the dataset and implement the collaborative filtering mechanism with matrix factorization. The final model was able to achieve a RMSE value of 1.0804 compared to the baseline RMSE of 1.1782 and offer notably more personalized recommendations (see [Insights](#insights)) through a combination of collaborative filtering, content-based filtering, and a final affinity score.
 
 ## Jump to:
 - [Background](#background)
