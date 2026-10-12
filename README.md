@@ -14,10 +14,15 @@
       - [Choosing Lambda](#choosing-lambda)
       - [Adding Content-Based Filtering](#adding-content-based-filtering)
       - [Adjusting Affinity Score and Bimodality](#adjusting-affinity-score-and-bimodality)
-  - [Example Results](#example-results)
-  - [Insights](#insights)
-  - [Limitations](#limitations)
-  - [Areas to Improve](#areas-to-improve)
+- [Example Results](#example-results)
+- [Insights](#insights)
+  - [Math is First](#math-is-first)
+  - [Quality vs Personalization](#quality-vs-personalization)
+  - [Understand the Limits of the Data](#understand-the-limits-of-the-data)
+- [Limitations](#limitations)
+  - [Subjective Evaluation](#subjective-evaluation)
+  - [Genre Matching over Serendipity](#genre-matching-over-serendipity)
+- [Areas to Improve](#areas-to-improve)
 
 
 # Background
@@ -720,31 +725,27 @@ Top 10 personalized recommendations for User 500:
    I'll talk more about the other challenges under the umbrella of the other two insights, but math was the basis for every change.
 
 ### Quality vs Personalization
-Repeatedly throughout this project, I found myself choosing to trade-off between consensus quality of a movie and personalizing to a user's taste. The ultimate decision on **where this model sits in this trade-off is inherently subjective**; there is no way to compare our rankings to the actual rankings of an user from this dataset because we're only recommending unwatched movies.
+  Repeatedly throughout this project, I found myself choosing to trade-off between consensus quality of a movie and personalizing to a user's taste. The ultimate decision on **where this model sits in this trade-off is inherently subjective**; there is no way to compare our rankings to the actual rankings of an user from this dataset because we're only recommending unwatched movies.
 
-To find the middle-ground that I ultimately settled on, I made several decisions that impacted this trade-off. Firstly, all movies that were recommended had more than 20 ratings. Without this threshold, there were simply too niche of movies being recommended that I believe no one has ever heard of. This threshold definitely falls more on the quality movie side of the trade-off, since it prevents the possibility of super-niche movies that were perfect for a user from being recommended in exchange for guaranteed safer recommendations.
+  To find the middle-ground that I ultimately settled on, I made several decisions that impacted this trade-off. Firstly, all movies that were recommended had more than 20 ratings. Without this threshold, there were simply too niche of movies being recommended that I believe no one has ever heard of. This threshold definitely falls more on the quality movie side of the trade-off, since it prevents the possibility of super-niche movies that were perfect for a user from being recommended in exchange for guaranteed safer recommendations.
 
-Secondly, this trade-off also appeared when deciding lambda. The larger the regression term, the more it penalizes values that specify a user's and movie's tastes. Relatively smaller regression terms (<0.5) would lead to super niche recommendations, and relatively higher regression terms (>5.0) would lead to only blockbusters being recommended, which were more respected by the cost function since they had many more ratings affected the cost function than smaller movies.
+  Secondly, this trade-off also appeared when deciding lambda. The larger the regression term, the more it penalizes values that specify a user's and movie's tastes. Relatively smaller regression terms (<0.5) would lead to super niche recommendations, and relatively higher regression terms (>5.0) would lead to only blockbusters being recommended, which were more respected by the cost function since they had many more ratings affected the cost function than smaller movies.
 
-  Finally, the addition of cosine similarity in the affinity score was a move dedicated towards personalizing the recommendations more than just the traditional blockbuster. Blockbusters have greater vector magnitudes, so they would usually pull ahead in predicted ratings, but vector magnitudes does not affect the angle the vector makes. The more similar the vector's angles, the more the movie would be recommended, which favored the movies that fit the user's specific niche as opposed to a loosely related big hit.
+  Finally, the addition of cosine similarity in the affinity score was a move dedicated towards personalizing the recommendations more than just the traditional blockbuster. Blockbusters have greater vector magnitudes, so they would usually pull ahead in predicted ratings, but vector magnitudes does not affect the angle the vector makes. The more similar the vector's angles, the more the movie would be recommended, which favored the movies that fit the user's specific niche as opposed to a loosely related big hit. Using cosine similarity was a way to bring this trade-off a little more back towards the personalization side. A couple more adjustments were then made between these three factors to dial in the predictions to where they felt personal and high-quality. Again, this is a subjective choice, and these would be the factors to change if the rankings felt leaning too much to one side.
 
-### Understand your Data's Limits
-  A big lesson learned from this project is being aware of my data's realistic limits. I was stubbornly avoiding the genre tags to not "contaminate" the model, but the dataset was simply too sparse and small for it to be able to predict ratings purely off of other ratings. Recognizing this was the key for me to actually add content-based filtering to the project and have a breakthrough. Once I used genres and tweaked the affinity scores to include the importance of shared genres, the predicted ratings for this now-hybrid model made way more sense than before.
+### Understand the Limits of the Data
+  A big lesson learned from this project is to be aware of my data's realistic limits. I was stubbornly avoiding the genre tags and content-based filtering to not "contaminate" the model, but the dataset was simply too sparse and small for it to be able to predict ratings purely off of other ratings. Recognizing this was the key for me to actually add content-based filtering to the project and have a breakthrough. Once I used genres and tweaked the affinity scores to include the importance of shared genres, the recommendations for this now-hybrid model made way more sense than before. I'm sure previous recommendations were decent in their own way with shared latent factors, but since one of the most important reference points for movies are the genres its related to, the current recommendations look considerably better.
 
 ## Limitations
-### Dataset-Related Limitations
-- timeline
-- languages
-- 
-
 ### Subjective Evaluation
+  As discussed previously, this is  an unsupervised model, meaning that ultimately there is no "answer key" for us to compare our recommendations against. The user doesn't know how good the recommendations are because they haven't watched (technically rated) them. The only thing we can confidently say is that this model predicts actual ratings of users better than just assigning each user the average rating of that movie (RMSE: 1.0804 < 1.1782). Anything after that, including the affinity scores and the top recommended movies shown to the user, was tweaked and adjusted based on what I thought looked the best.
+  For now, there is no mathematical proof for me to say that this is the best recommendation system for this dataset. I imagine there are probably some ways you could manipulate the dataset, like splitting ratings at a certain timestamp, and seeing what users rank their recommendations, but that is based on the premise that the model was able to consistently recommend movies that they've watched. The dataset might also be too sparse for this.
+
+### Genre Matching over Serendipity
+  Similar to the [Quality vs Personalization](#quality-vs-personalization) trade-off, the addition of content into the affinity score also gave rise to an adjacent trade-off between serendipity and genre. The new affinity score so heavily weights matching top genres to the point where it is basically impossible for a movie that doesn't share one of the user's top genres to enter the fold. On one hand, this loss of serendipity is unfortunate, as it means the recommender system won't be able to recommend anything new. On the other hand, I think accepting this as a limitation of the model is the pragmatic thing to do with this dataset. Recommending a movie with an under-rated genre to a user is risky when the dataset seems too small for the model to confidently pick up enough of a user's preferences to do that. An alternative solution that keeps the same model could be to choose the 5 movies over the quality threshold with the worse genre alignment.
 
 ## Areas to Improve
-Make it easier to add personal ratings (especially a way to test without training a new model
-Implicit Data
-User drifts
-add in movies
-
-
-
-   
+  As I'm wrapping up the project, there are 3 feasible things I can think of where this project could improve.
+  1. **Make it easier to add personal ratings**. Right now, the process for adding personal ratings includes multiple apps and running multiple scripts in a specific order. This isn't even to mention the fact that this current model currently requires it to be re-trained every time new users get added to learn the user_vector to represent them. A work-around seems to be called "Folding-in", where we keep G (genre) and X (movie) weights the same as before and just train one k length vector to represent the new user, using the frozen weights for predicting what the new user rated their movies. After adding this, there is definitely a more robust and user-friendly way to program the addition of ratings. (Note: Adding movies is much more difficult than adding users since users can come with their own ratings, while a new movie would require ratings from previous users. There does seem to be ways to embed the movie in a vector, etc., and train the model to predict features based on movies its embedding is similar to, and this is substantially more involved).
+  2. **Train the model on implicit data, kinda**. A lot of implicit data, like how a user selected the movie or how long they watched the movie for is off-limits in the dataset. However, this dataset includes the implicit data of whether or not they've rated a film or not. Odds are, users are more likely to rate movies they've watched, and they're more likely to watch movies they think they'll enjoy. For example, a user that has rated *Kung Fu Panda 1* and *2* highly is much likelier to watch *Kung Fu Panda 3* and enjoy it then a similar user that hasn't rated Kung Fu Panda at all. It seems that modern recommendation systems use something to work with implicit data for purposes like this called Bayesian Personalized Ranking, although I'd have to say that I don't have much belief the sparse and somewhat small dataset would allow for much improvement to happen in this regard. This also touches on the subjectivity of what a recommendation system should do: recommend movies the user is already very aware of or movies that are slightly outside the wheelhouse that they came to another source to learn about?
+  3. **User preferences over time**. This dataset does contain timestamp data over time, so there is the possibility of asking the model to give recommendations to users based on their ratings up to that timestamp and/or favor recency to that specified timestamp. While this is probably extremely useful for the major recommendation systems of today, like Instagram or YouTube, I'm again hesitant about how much improvement this can actually give to the model, especially since a substantial amount of users have under 100 ratings and splitting that up further would make recommendations more difficult.
