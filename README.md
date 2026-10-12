@@ -168,7 +168,7 @@ $(m\text{ movies} \times k\text{ hidden factors}) \times (k\text{ hidden factors
 | **Movie 1** | (74/100) | (33/100) |
 | **Movie 2** | (18/100) | (72/100) |
 
-  Note that the number of hidden factors is not limited to just 2. Because movie and user k-vectors are always k-long, the multiplication works whether k latent factors = 2 or 200. This current model uses ```k=15``` hidden factors.
+  Note that the number of hidden factors is not limited to just 2. Because movie and user k-vectors are always k-long, the multiplication works whether k latent factors = 2 or 200. This current model uses ```k=100``` hidden factors.
 
   Okay, now we can see how hidden factors can be useful, but how do we figure out each user/movie's values for each latent factor? This is where gradient descent comes in. Each user and movie is randomly assigned a value for every hidden factor to start. Then, we compare $m_i \cdot u_j$ to the actual rating (unrated movie-user pairs are skipped over). The total error (cost) is the sum of all these errors.
 
@@ -179,7 +179,7 @@ $(m\text{ movies} \times k\text{ hidden factors}) \times (k\text{ hidden factors
 
   With the math concept decided on, I began with ```create_db.py``` to load the data into ```movielens.db``` and ran some test queries to ensure that it was working. Then, I began working on ```train.py```, which was able to run quite quickly. I saved my parameters to ```trained_weights.npz``` so that ```predict.py``` could easily access them and make the predictions, and that was where progress dragged to a halt. My predictions seemed extremely random for various users, and I had to search up a ton of movies, only to realize the predictions made no sense.
 
-  Now, I decided, was as good of time as any to incorporate my own ratings into the project, then I simply followed the same steps as Step 4 in [How to Use this Program Yourself](#how-to-use-this-program-yourself): wrote titles into ```movies.txt```, copy-pasted these into a spreadsheet, rated some of the movies, filtered the movies to only rated ones, copy-pasted those back into ```my_ratings.txt```, and use ```write_movies.py``` to include them into ```movielens.db```. Then, I was able to confirm my suspicions that my predicted ratings made no sense. This began the weeks-long journey of turning this program from a model that existed to one that gave real recommendations. Listed below are 6 major challenges I addressed over the weeks, but there are many more that didn't make the cut.
+  Now, I decided, was as good of time as any to incorporate my own ratings into the project, then I simply followed the same steps as Step 4 in [How to Use this Program Yourself](#how-to-use-this-program-yourself): wrote titles into ```movies.txt```, copy-pasted these into a spreadsheet, rated some of the movies, filtered the movies to only rated ones, copy-pasted those back into ```my_ratings.txt```, and use ```write_movies.py``` to include them into ```movielens.db```. Then, I was able to confirm my suspicions that my predicted ratings made no sense. This began the weeks-long journey of turning this program from a model that existed to one that gave real recommendations. Listed below are 7 major challenges I addressed over the weeks, but there are many more that didn't make the cut.
 
 ## Challenges and Solutions
 ### Cold Start Problem
@@ -426,7 +426,7 @@ for i in range(len(candidate_affs)):
             candidate_affs[i] += (sorted_genre_count[genre] / (5 ** (num_matches + 1))
             num_matches += 1
 ```
-  Of the movies that cross the quality threshold, we calculate their cosine similarity. Next, we sort the genres that the movie is tagged with in decreasing order of frequency in the user's top 30 (or top n ratings if < 30). For every tagged genre, we add that genre's frequency divided by $5^{movie_genre_rank}$. That is, the tagged genre that is most prevalent in the user's top 30 is divided by 5, the next most prevalent 25, then 125, and so on. This heavily weights movies that have at least one or two of the user's very top genre preferences, and it also decreases quickly enough to where it is not only looking at which movie has the most genre matches. A high cosine similarity score will have a greater impact on the score than the third genre onwards, so it is important for movies to have both. With the affinity score finished, the model was well and truly finalized.
+  Of the movies that cross the quality threshold, we calculate their cosine similarity. Next, we sort the genres that the movie is tagged with in decreasing order of frequency in the user's top 30 (or top n ratings if < 30). For every tagged genre, we add that genre's frequency divided by $5^{movie_genre_rank}$. That is, the tagged genre that is most prevalent in the user's top 30 has their frequency divided by 5, the next most prevalent 25, then 125, and so on. This heavily weights movies that have at least one or two of the user's very top genre preferences, and it also decreases quickly enough to where it is not only looking at which movie has the most genre matches. A high cosine similarity score will have a greater impact on the score than the third genre onwards, so it is important for movies to have both. Lastly, this means that genre matters less for users with fewer ratings, as a third of 30 ratings would use 10 for this calculation whereas a third of 12 would use 4 with this calculation, which prevents outliers from making a dramatic difference in small datasets. With the affinity score finished, the model was well and truly finalized.
   
   <details>
     <summary>Final User 100 Results</summary>
@@ -572,11 +572,142 @@ Top 10 personalized recommendations for User 100:
 </details>
 
 <details>
-  <summary></summary>
+  <summary>User 300 (n = 30), loves heavy, psychological dramas with a mixing in of Thriller, Romance, Crime, and Comedy</summary>
+  
+```
+Top 30 ratings for User 300:
+  (5.0, 'Schindler's List (1993)', Genres: 'Drama|War'))
+  (5.0, 'Cinema Paradiso (Nuovo cinema Paradiso) (1989)', Genres: 'Drama'))
+  (5.0, 'Life Is Beautiful (La Vita è bella) (1997)', Genres: 'Comedy|Drama|Romance|War'))
+  (5.0, 'American Beauty (1999)', Genres: 'Drama|Romance'))
+  (5.0, 'City of God (Cidade de Deus) (2002)', Genres: 'Action|Adventure|Crime|Drama|Thriller'))
+  (5.0, 'Lost in Translation (2003)', Genres: 'Comedy|Drama|Romance'))
+  (5.0, 'Eternal Sunshine of the Spotless Mind (2004)', Genres: 'Drama|Romance|Sci-Fi'))
+  (5.0, 'Pan's Labyrinth (Laberinto del fauno, El) (2006)', Genres: 'Drama|Fantasy|Thriller'))
+  (5.0, 'Black Swan (2010)', Genres: 'Drama|Thriller'))
+  (5.0, 'Interstellar (2014)', Genres: 'Sci-Fi|IMAX'))
+  (5.0, 'Boyhood (2014)', Genres: 'Drama'))
+  (5.0, 'Gone Girl (2014)', Genres: 'Drama|Thriller'))
+  (4.5, 'Fight Club (1999)', Genres: 'Action|Crime|Drama|Thriller'))
+  (4.5, 'Pianist, The (2002)', Genres: 'Drama|War'))
+  (4.5, 'Whiplash (2014)', Genres: 'Drama'))
+  (4.0, 'Shawshank Redemption, The (1994)', Genres: 'Crime|Drama'))
+  (4.0, 'Forrest Gump (1994)', Genres: 'Comedy|Drama|Romance|War'))
+  (4.0, 'Silence of the Lambs, The (1991)', Genres: 'Crime|Horror|Thriller'))
+  (4.0, 'Saving Private Ryan (1998)', Genres: 'Action|Drama|War'))
+  (4.0, 'American History X (1998)', Genres: 'Crime|Drama'))
+  (4.0, 'Matrix, The (1999)', Genres: 'Action|Sci-Fi|Thriller'))
+  (4.0, 'Mulholland Drive (2001)', Genres: 'Crime|Drama|Film-Noir|Mystery|Thriller'))
+  (4.0, 'Amelie (Fabuleux destin d'Amélie Poulain, Le) (2001)', Genres: 'Comedy|Romance'))
+  (4.0, 'Slumdog Millionaire (2008)', Genres: 'Crime|Drama|Romance'))
+  (4.0, 'Inception (2010)', Genres: 'Action|Crime|Drama|Mystery|Sci-Fi|Thriller|IMAX'))
+  (4.0, 'Intouchables (2011)', Genres: 'Comedy|Drama'))
+  (4.0, 'Birdman: Or (The Unexpected Virtue of Ignorance) (2014)', Genres: 'Comedy|Drama'))
+  (3.5, 'Sixth Sense, The (1999)', Genres: 'Drama|Horror|Mystery'))
+  (3.5, 'Django Unchained (2012)', Genres: 'Action|Drama|Western'))
+  (3.0, 'Good Will Hunting (1997)', Genres: 'Drama|Romance'))
+Top Genres:
+Drama: 86.67%
+Thriller: 30.00%
+Romance: 26.67%
+Crime: 26.67%
+Comedy: 20.00%
+
+Top 10 baseline recommendations for User 300:
+  (4.33 avg, 27 reviews, 'Sunset Blvd. (a.k.a. Sunset Boulevard) (1950)', Genres: 'Drama|Film-Noir|Romance')
+  (4.31 avg, 29 reviews, 'Philadelphia Story, The (1940)', Genres: 'Comedy|Drama|Romance')
+  (4.30 avg, 25 reviews, 'In the Name of the Father (1993)', Genres: 'Drama')
+  (4.30 avg, 45 reviews, 'Lawrence of Arabia (1962)', Genres: 'Adventure|Drama|War')
+  (4.29 avg, 29 reviews, 'Hoop Dreams (1994)', Genres: 'Documentary')
+  (4.29 avg, 192 reviews, 'Godfather, The (1972)', Genres: 'Crime|Drama')
+  (4.29 avg, 26 reviews, 'Harold and Maude (1971)', Genres: 'Comedy|Drama|Romance')
+  (4.28 avg, 25 reviews, 'Logan (2017)', Genres: 'Action|Sci-Fi')
+  (4.27 avg, 57 reviews, 'Cool Hand Luke (1967)', Genres: 'Drama')
+  (4.27 avg, 97 reviews, 'Dr. Strangelove or: How I Learned to Stop Worrying and Love the Bomb (1964)', Genres: 'Comedy|War')
+
+Top 10 personalized recommendations for User 300:
+ Affinity: +5.857, Pred: 5.00, 'Pulp Fiction (1994), Genres: 'Comedy|Crime|Drama|Thriller')
+ Affinity: +5.814, Pred: 4.65, 'Strangers on a Train (1951), Genres: 'Crime|Drama|Film-Noir|Thriller')
+ Affinity: +5.806, Pred: 4.50, 'Deliverance (1972), Genres: 'Adventure|Drama|Thriller')
+ Affinity: +5.793, Pred: 4.52, 'Inside Man (2006), Genres: 'Crime|Drama|Thriller')
+ Affinity: +5.763, Pred: 4.61, 'Clockwork Orange, A (1971), Genres: 'Crime|Drama|Sci-Fi|Thriller')
+ Affinity: +5.756, Pred: 4.52, 'Fisher King, The (1991), Genres: 'Comedy|Drama|Fantasy|Romance')
+ Affinity: +5.755, Pred: 4.69, 'Dead Man Walking (1995), Genres: 'Crime|Drama')
+ Affinity: +5.730, Pred: 4.65, 'Graduate, The (1967), Genres: 'Comedy|Drama|Romance')
+ Affinity: +5.718, Pred: 4.57, 'Fargo (1996), Genres: 'Comedy|Crime|Drama|Thriller')
+ Affinity: +5.708, Pred: 4.84, 'Being John Malkovich (1999), Genres: 'Comedy|Drama|Fantasy')
+```
+
 </details>
 
 <details>
-  <summary></summary>
+  <summary>User 500 (n = 86), loves Comedy, specifically satirical/quirky humor styles</summary>
+  
+  ```
+Top 30 ratings for User 500:
+  (5.0, 'Living in Oblivion (1995)', Genres: 'Comedy'))
+  (5.0, 'Delicatessen (1991)', Genres: 'Comedy|Drama|Romance'))
+  (5.0, 'Fantasia (1940)', Genres: 'Animation|Children|Fantasy|Musical'))
+  (5.0, 'Wag the Dog (1997)', Genres: 'Comedy'))
+  (5.0, 'As Good as It Gets (1997)', Genres: 'Comedy|Drama|Romance'))
+  (5.0, 'Bug's Life, A (1998)', Genres: 'Adventure|Animation|Children|Comedy'))
+  (5.0, 'Lock, Stock & Two Smoking Barrels (1998)', Genres: 'Comedy|Crime|Thriller'))
+  (5.0, 'South Park: Bigger, Longer and Uncut (1999)', Genres: 'Animation|Comedy|Musical'))
+  (5.0, 'American Beauty (1999)', Genres: 'Drama|Romance'))
+  (5.0, 'Being John Malkovich (1999)', Genres: 'Comedy|Drama|Fantasy'))
+  (5.0, 'Toy Story 2 (1999)', Genres: 'Adventure|Animation|Children|Comedy|Fantasy'))
+  (5.0, 'Ninth Gate, The (1999)', Genres: 'Fantasy|Horror|Mystery|Thriller'))
+  (5.0, 'Shrek (2001)', Genres: 'Adventure|Animation|Children|Comedy|Fantasy|Romance'))
+  (4.0, 'Toy Story (1995)', Genres: 'Adventure|Animation|Children|Comedy|Fantasy'))
+  (4.0, 'Happy Gilmore (1996)', Genres: 'Comedy'))
+  (4.0, 'Mallrats (1995)', Genres: 'Comedy|Romance'))
+  (4.0, 'Billy Madison (1995)', Genres: 'Comedy'))
+  (4.0, 'Star Wars: Episode IV - A New Hope (1977)', Genres: 'Action|Adventure|Sci-Fi'))
+  (4.0, 'Swimming with Sharks (1995)', Genres: 'Comedy|Drama'))
+  (4.0, 'Forrest Gump (1994)', Genres: 'Comedy|Drama|Romance|War'))
+  (4.0, 'Dave (1993)', Genres: 'Comedy|Romance'))
+  (4.0, 'Jurassic Park (1993)', Genres: 'Action|Adventure|Sci-Fi|Thriller'))
+  (4.0, 'So I Married an Axe Murderer (1993)', Genres: 'Comedy|Romance|Thriller'))
+  (4.0, 'Aladdin (1992)', Genres: 'Adventure|Animation|Children|Comedy|Musical'))
+  (4.0, 'Beauty and the Beast (1991)', Genres: 'Animation|Children|Fantasy|Musical|Romance|IMAX'))
+  (4.0, 'Truth About Cats & Dogs, The (1996)', Genres: 'Comedy|Romance'))
+  (4.0, 'Wallace & Gromit: The Best of Aardman Animation (1996)', Genres: 'Adventure|Animation|Comedy'))
+  (4.0, 'Wallace & Gromit: The Wrong Trousers (1993)', Genres: 'Animation|Children|Comedy|Crime'))
+  (4.0, 'Army of Darkness (1993)', Genres: 'Action|Adventure|Comedy|Fantasy|Horror'))
+  (4.0, 'Akira (1988)', Genres: 'Action|Adventure|Animation|Sci-Fi'))
+Top Genres:
+Comedy: 76.67%
+Animation: 36.67%
+Romance: 33.33%
+Adventure: 33.33%
+Children: 26.67%
+
+Top 10 baseline recommendations for User 500:
+  (4.43 avg, 317 reviews, 'Shawshank Redemption, The (1994)', Genres: 'Crime|Drama')
+  (4.33 avg, 27 reviews, 'Sunset Blvd. (a.k.a. Sunset Boulevard) (1950)', Genres: 'Drama|Film-Noir|Romance')
+  (4.31 avg, 29 reviews, 'Philadelphia Story, The (1940)', Genres: 'Comedy|Drama|Romance')
+  (4.30 avg, 25 reviews, 'In the Name of the Father (1993)', Genres: 'Drama')
+  (4.30 avg, 45 reviews, 'Lawrence of Arabia (1962)', Genres: 'Adventure|Drama|War')
+  (4.29 avg, 29 reviews, 'Hoop Dreams (1994)', Genres: 'Documentary')
+  (4.29 avg, 192 reviews, 'Godfather, The (1972)', Genres: 'Crime|Drama')
+  (4.29 avg, 26 reviews, 'Harold and Maude (1971)', Genres: 'Comedy|Drama|Romance')
+  (4.28 avg, 25 reviews, 'Logan (2017)', Genres: 'Action|Sci-Fi')
+  (4.27 avg, 218 reviews, 'Fight Club (1999)', Genres: 'Action|Crime|Drama|Thriller')
+
+Top 10 personalized recommendations for User 500:
+ Affinity: +5.202, Pred: 4.89, 'Graduate, The (1967), Genres: 'Comedy|Drama|Romance')
+ Affinity: +5.147, Pred: 4.59, 'Monty Python and the Holy Grail (1975), Genres: 'Adventure|Comedy|Fantasy')
+ Affinity: +5.145, Pred: 4.53, 'Maverick (1994), Genres: 'Adventure|Comedy|Western')
+ Affinity: +5.078, Pred: 4.75, 'Young Frankenstein (1974), Genres: 'Comedy|Fantasy')
+ Affinity: +5.008, Pred: 5.00, 'Arsenic and Old Lace (1944), Genres: 'Comedy|Mystery|Thriller')
+ Affinity: +4.907, Pred: 4.75, 'Kiss Kiss Bang Bang (2005), Genres: 'Comedy|Crime|Mystery|Thriller')
+ Affinity: +4.874, Pred: 4.56, 'Hot Fuzz (2007), Genres: 'Action|Comedy|Crime|Mystery')
+ Affinity: +4.819, Pred: 4.83, 'Office Space (1999), Genres: 'Comedy|Crime')
+ Affinity: +4.786, Pred: 4.79, 'This Is Spinal Tap (1984), Genres: 'Comedy')
+ Affinity: +2.743, Pred: 4.88, 'Coraline (2009), Genres: 'Animation|Fantasy|Thriller')
+
+```
+
 </details>
 
 ## Insights
@@ -587,6 +718,6 @@ sparse, subjective final evaluation.
 
 ## Areas to Improve
 make it easier to add ratings, or possibly make it autonomous.
-mix in content-based filtering (genre tags are a part of the dataset)
+
 
    
