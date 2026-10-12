@@ -265,7 +265,7 @@ def manual_train_test_split(R):
 | 7.5 | 1.0509 | Y |
 | 10.0 | 1.0439 | Y |
 
-  However, it was not so simple as just choosing the lambda that resulted in the lowest RMSE. The recommendations still didn't feel great to me, so I first looked to see if there was a way I could further fine-tune the recommendations before deciding on a lambda. Returning to this section after adding content-based filtering, we finished with a lambda of 1.0 and a RMSE of 1.0804.
+  However, it was not so simple as just choosing the lambda that resulted in the lowest RMSE. The recommendations still didn't feel great to me, so I first looked to see if there was a way I could further fine-tune the recommendations before deciding on a lambda. Returning to this section after adding content-based filtering, we finished with a lambda of 1.0 and a RMSE of 1.0804. **So, the values above are moot, but the process of choosing lambda follows the same idea: lower RMSE than baseline model that produces the *best* recommendations**. (Best is entirely subjective)
 
 </details>
 
@@ -285,20 +285,21 @@ If a movie is rated 100 times, its cost would equal to the sum of those 100 diff
 
   Luckily, there is a value that can be easily obtained from those values that ignores the number of ratings, and that is the cosine similarity angle, calculated by:
 
-$$
-cos(\theta) = \frac{m_i \cdot u_j}{\left\| m_i \right\|\times\left\| u_j \right\|}
-$$
+
+$\cos(\theta) = \frac{m_i \cdot u_j}{\left\|m_i\right\|\left\|u_j\right\|}$
+
+
 ```
 cosine_sim = np.dot(X_weights, user_vec) / (safe_movie_norms * user_norm)
 ```
-  The more similar the angle, the more the latent factors of the movie and the user line up, the greater the value of $cos(\theta)$ up to 1. Thus, the final recommendation system became a two-part system. Use matrix factorization to predict an overall quality of movies. At ```quality_threshold = 4.8```, the predicted rating difference between movies feels too arbitrary, so they are then ranked in descending order by $cos(\theta)$, or how well the movie aligns with the user's taste.
+  The more similar the angle, the more the latent factors of the movie and the user line up, the greater the value of $cos(\theta)$ up to 1. Thus, the final recommendation system became a two-part system. Use matrix factorization to predict an overall quality of movies. At ```quality_threshold = 4.5```, the predicted rating difference between movies feels too arbitrary, so they are then ranked in descending order by $cos(\theta)$, or how well the movie aligns with the user's taste.
 </details>
 
 ### Choosing Lambda
 <details>
   <summary>Which lambda is actually the best for my model?</summary>
 
-  Adding cosine similarity didn't change the RMSE values for various lambda, since it is implemented after the predicted ratings, but it did change the feeling of the recommendations. Now that the recommendation system was complete, the lambda that performed the best seems to be ```lambda = 3.5```. The lower-value lambdas were still worse than the baseline, and the higher value lambdas didn't capture the personality of the user, recommending too many safe blockbuster picks. Later on, after editing the model further (see [Adding Content-Based Filtering](#adding-content-based-filtering) and [Adjusting Affinity Score](#adjusting-affinity-score-and-bimodality)), I settled on ```lambda = 1.0```. The reasoning was still the same, lower RMSE than the baseline and best-feeling results.
+  Adding cosine similarity didn't change the RMSE values for various lambda, since it is implemented after the predicted ratings, but it did change the feeling of the recommendations. Now that the recommendation system was complete, the lambda that performed the best seems to be ```lambda = 3.5```. The lower-value lambdas were still worse than the baseline, and the higher value lambdas didn't capture the personality of the user, recommending too many safe blockbuster picks. **Later on, after editing the model further (see [Adding Content-Based Filtering](#adding-content-based-filtering) and [Adjusting Affinity Score](#adjusting-affinity-score-and-bimodality)), I settled on a new** ```lambda = 1.0```. The reasoning was still the same, lower RMSE than the baseline and best-feeling results.
 </details>
 
 ### Adding Content-Based Filtering
@@ -711,13 +712,39 @@ Top 10 personalized recommendations for User 500:
 </details>
 
 ## Insights
-recs etc.
+
+### Math is First
+  The first insight I gained from this project is that truly understanding the math behind every step of my model makes it much easier to debug and address specific challenges. This isn't just what is being evaluated or the result of something, but also understanding how different parts of the model affect each other. This is obvious to some degree, but I didn't expect how consistently this would come up or how much time this would save. Every single one of the 7 major challenges I came across and many of the ones not included here had their solution originate from the math of the model.
+1. The Cold Start Problem was addressed by changing the ratings matrix the model trained on from the pure ratings of the movies to the residual between each user and that movie's average rating. This was how we could mathematically acknowledge that certain movies by consensus were rated higher than others and should be more respected by the model.
+2. The Standard Deviation problem, where I was getting extremely high predicted ratings in the 9-10s range was finally solved by seeing how the then standard deviation of 1.0 snowballed into huge ratings with the formula: $\sum_{}^{} X_{i} \cdot W^T_j$ . The AI models also consistently overlooked these lines of code while debugging this rating issue, and this was something where understanding the math would have saved me a lot of debugging time and stress. If I recall correctly, Andrew Ng's course also did not discuss that this could be a trouble spot. I was about to assume that this was simply the best the model could do until Gemini caught it on one final pass.
+   I'll talk more about the other challenges under the umbrella of the other two insights, but math was the basis for every change.
+
+### Quality vs Personalization
+Repeatedly throughout this project, I found myself choosing to trade-off between consensus quality of a movie and personalizing to a user's taste. The ultimate decision on **where this model sits in this trade-off is inherently subjective**; there is no way to compare our rankings to the actual rankings of an user from this dataset because we're only recommending unwatched movies.
+
+To find the middle-ground that I ultimately settled on, I made several decisions that impacted this trade-off. Firstly, all movies that were recommended had more than 20 ratings. Without this threshold, there were simply too niche of movies being recommended that I believe no one has ever heard of. This threshold definitely falls more on the quality movie side of the trade-off, since it prevents the possibility of super-niche movies that were perfect for a user from being recommended in exchange for guaranteed safer recommendations.
+
+Secondly, this trade-off also appeared when deciding lambda. The larger the regression term, the more it penalizes values that specify a user's and movie's tastes. Relatively smaller regression terms (<0.5) would lead to super niche recommendations, and relatively higher regression terms (>5.0) would lead to only blockbusters being recommended, which were more respected by the cost function since they had many more ratings affected the cost function than smaller movies.
+
+  Finally, the addition of cosine similarity in the affinity score was a move dedicated towards personalizing the recommendations more than just the traditional blockbuster. Blockbusters have greater vector magnitudes, so they would usually pull ahead in predicted ratings, but vector magnitudes does not affect the angle the vector makes. The more similar the vector's angles, the more the movie would be recommended, which favored the movies that fit the user's specific niche as opposed to a loosely related big hit.
+
+### Understand your Data's Limits
+  A big lesson learned from this project is being aware of my data's realistic limits. I was stubbornly avoiding the genre tags to not "contaminate" the model, but the dataset was simply too sparse and small for it to be able to predict ratings purely off of other ratings. Recognizing this was the key for me to actually add content-based filtering to the project and have a breakthrough. Once I used genres and tweaked the affinity scores to include the importance of shared genres, the predicted ratings for this now-hybrid model made way more sense than before.
 
 ## Limitations
-sparse, subjective final evaluation.
+### Dataset-Related Limitations
+- timeline
+- languages
+- 
+
+### Subjective Evaluation
 
 ## Areas to Improve
-make it easier to add ratings, or possibly make it autonomous.
+Make it easier to add personal ratings (especially a way to test without training a new model
+Implicit Data
+User drifts
+add in movies
+
 
 
    
